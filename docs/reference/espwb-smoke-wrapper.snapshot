@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+WORKBENCH_IP="${WORKBENCH_IP:-192.168.1.235}"
+WORKBENCH_SSH="${WORKBENCH_SSH:-pi@${WORKBENCH_IP}}"
+ESPWB_SLOT="${ESPWB_SLOT:-SLOT1}"
+
+KEY=""
+
+for candidate in \
+  /host-ssh/id_ed25519 \
+  /host-ssh/id_rsa \
+  /host-ssh/id_ecdsa \
+  "${HOME}/.ssh/id_ed25519" \
+  "${HOME}/.ssh/id_rsa" \
+  "${HOME}/.ssh/id_ecdsa"
+do
+  if [ -f "${candidate}" ]; then
+    KEY="${candidate}"
+    break
+  fi
+done
+
+if [ -z "${KEY}" ]; then
+  echo "ERROR: no usable SSH private key found" >&2
+  exit 2
+fi
+
+cp "${KEY}" /tmp/espwb_ssh_key
+chmod 600 /tmp/espwb_ssh_key
+
+ssh-keyscan -T 5 "${WORKBENCH_IP}" >/tmp/espwb_known_hosts 2>/dev/null
+chmod 600 /tmp/espwb_known_hosts
+
+SSH_OPTS=(
+  -F /dev/null
+  -i /tmp/espwb_ssh_key
+  -o BatchMode=yes
+  -o ConnectTimeout=8
+  -o IdentitiesOnly=yes
+  -o UserKnownHostsFile=/tmp/espwb_known_hosts
+  -o StrictHostKeyChecking=yes
+)
+
+STAGE="/tmp/espwb-upload-$(date +%Y%m%d-%H%M%S)-$$"
+READ_FLASH_LOCAL_OUT=""
+
+cleanup() {
+  ssh "${SSH_OPTS[@]}" "${WORKBENCH_SSH}" "rm -rf $(printf '%q' "${STAGE}")" >/dev/null 2>&1 || true
+}
+trap cleanup EXIT INT TERM
+
+ssh "${SSH_OPTS[@]}" "${WORKBENCH_SSH}" "mkdir -p $(printf '%q' "${STAGE}")"
+
+if [ "$#" -eq 0 ]; then
+  set -- flash-id
+fi
+
+remote_args=()
+
+if [ "${1:-}" = "read-flash" ] && [ "$#" -ge 4 ]; then
+  READ_FLASH_LOCAL_OUT="${4}"
+  mkdir -p "$(dirname "${READ_FLASH_LOCAL_OUT}")"
+
+  remote_out="${STAGE}/read-flash-$(basename "${READ_FLASH_LOCAL_OUT}")"
+
+  remote_args+=("${1}" "${2}" "${3}" "${remote_out}")
+  shift 4
+
+  for arg in "$@"; do
+    remote_args+=("${arg}")
+  done
+else
+  idx=0
+
+  for arg in "$@"; do
+    if [ -f "${arg}" ]; then
+      base="$(basename "${arg}")"
+      remote_file="${STAGE}/$(printf '%03d' "${idx}")-${base}"
+      scp "${SSH_OPTS[@]}" "${arg}" "${WORKBENCH_SSH}:${remote_file}" >/dev/null
+      remote_args+=("${remote_file}")
+      idx=$((idx + 1))
+    else
+      remote_args+=("${arg}")
+    fi
+  done
+fi
+
+remote=(/usr/local/bin/espwb-local-esptool "${ESPWB_SLOT}" "${remote_args[@]}")
+remote_cmd="$(printf '%q ' "${remote[@]}")"
+
+ssh "${SSH_OPTS[@]}" "${WORKBENCH_SSH}" "${remote_cmd}"
+
+if [ -n "${READ_FLASH_LOCAL_OUT}" ]; then
+  remote_out="${remote_args[3]}"
+  scp "${SSH_OPTS[@]}" "${WORKBENCH_SSH}:${remote_out}" "${READ_FLASH_LOCAL_OUT}" >/dev/null
+fi

@@ -1,0 +1,42 @@
+{
+  "name": "crowpanel-esphome",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "args": {
+      "ESPHOME_IMAGE": "ghcr.io/esphome/esphome:stable",
+      "USERNAME": "vscode",
+      "USER_UID": "1000",
+      "USER_GID": "1000"
+    }
+  },
+  "workspaceFolder": "/workspaces/crowpanel-esphome",
+  "remoteUser": "vscode",
+  "containerEnv": {
+    "WORKBENCH_IP": "192.168.1.235",
+    "WORKBENCH_USER": "pi",
+    "WORKBENCH_URL": "http://192.168.1.235:8080",
+    "ESPWB_SLOT": "SLOT1",
+    "ESP_PORT": "rfc2217://192.168.1.235:4001?ign_set_control",
+    "PLATFORMIO_CORE_DIR": "/cache/platformio",
+    "PIP_CACHE_DIR": "/cache/pip"
+  },
+  "mounts": [
+    "source=${localEnv:HOME}/.ssh,target=/host-ssh,type=bind,readonly",
+    "source=crowpanel-esphome-platformio,target=/cache/platformio,type=volume",
+    "source=crowpanel-esphome-pip,target=/cache/pip,type=volume"
+  ],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "esphome.esphome-vscode",
+        "ms-vscode.vscode-serial-monitor",
+        "redhat.vscode-yaml"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "files.trimTrailingWhitespace": true,
+        "files.insertFinalNewline": true
+      }
+    }
+  }
+}

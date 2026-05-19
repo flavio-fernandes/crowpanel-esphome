@@ -1,0 +1,21 @@
+Read AGENTS.md, README.md, docs/session-10-handoff.md, and docs/project-sources.md.
+
+Do not change files yet.
+
+Confirm you understand the project state, the safety guardrails, and the next planned step.
+
+Then inspect the Step 10B files already installed in the workspace:
+- .devcontainer/Dockerfile
+- .devcontainer/devcontainer.json
+- tools/espwb-ssh
+- tools/espwb-esptool
+- tools/validate-workbench.sh
+- README.md
+- AGENTS.md
+- .gitignore
+
+Check them for obvious syntax, safety, or workflow issues.
+
+Do not build or validate the devcontainer yet.
+Do not push to GitHub.
+Do not flash anything yet.
