@@ -4,6 +4,7 @@
 
 - Repo: `https://github.com/flavio-fernandes/crowpanel-esphome.git`
 - Branch: `main`
+- Roadmap: `docs/roadmap.md`
 
 Current validated commits:
 
