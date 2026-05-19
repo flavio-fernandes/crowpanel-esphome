@@ -1,0 +1,21 @@
+esphome:
+  name: feather-huzzah32-blink
+
+esp32:
+  board: featheresp32
+  framework:
+    type: arduino
+
+logger:
+
+switch:
+  - platform: gpio
+    id: onboard_led
+    internal: true
+    pin: GPIO13
+    restore_mode: ALWAYS_OFF
+
+interval:
+  - interval: 500ms
+    then:
+      - switch.toggle: onboard_led

@@ -28,6 +28,11 @@ python3 -m esptool version
 esphome version
 ```
 
+Known-good example:
+
+- Throwaway Feather/HUZZAH32 blink YAML: `examples/feather-huzzah32-blink/feather-huzzah32-blink.yaml`
+- ESPHome workbench cheat sheet: `docs/esphome-workbench-cheatsheet.md`
+
 Step flow:
 
 1. Validate baseline and skeleton.
