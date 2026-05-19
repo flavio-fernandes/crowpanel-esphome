@@ -64,6 +64,8 @@ examples/feather-huzzah32-blink/.esphome/
 
 Codex saw `gh` installed, but `gh auth status` reported an invalid token in `/home/ff/.config/gh/hosts.yml` for `flavio-fernandes`.
 
+Codex initially saw an invalid `gh` token before the normal argon shell re-authenticated `gh`. After re-authentication, Codex should verify `gh auth status` in its own command environment before attempting GitHub operations.
+
 Manual GitHub setup from the argon shell succeeded anyway, which means the interactive shell environment and the Codex command environment did not agree about usable GitHub authentication at that time. If future Codex-driven GitHub commands fail while manual shell commands work, re-check:
 
 ```bash
