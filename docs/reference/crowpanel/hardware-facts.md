@@ -95,6 +95,9 @@ Source: Espressif ESP32-S3 hardware design guidelines.
 - Preferred first display path: `ili9xxx` with `model: GC9A01A`. The first
   `mipi_spi` attempt stayed blank on this board, while `ili9xxx` matched
   Elecrow's ESPHome examples and now produces a stable visual diagnostic.
+- CST816D touch works in ESPHome with normal probing on I2C address `0x15`,
+  SDA GPIO6, SCL GPIO7, INT GPIO5, reset GPIO13, `mirror_y: true`, and
+  `swap_xy: true`.
 - GPIO46 backlight is active-high and LEDC/PWM-capable when driven after boot.
   The current stable diagnostic uses a fixed 60% level.
 - Current ESPHome board baseline: `esp32-s3-devkitc-1`, `flash_size: 16MB`,
@@ -105,8 +108,6 @@ Source: Espressif ESP32-S3 hardware design guidelines.
 
 ## Open questions for next steps
 
-- Does the CrowPanel need `skip_probe` for CST816D/CST816-family touch startup,
-  or does normal I2C probing work reliably?
 - Do GPIO45/GPIO42 need swapped in ESPHome to make rotary direction feel
   natural?
 - Does GPIO41 knob press need pull-up or inverted semantics?

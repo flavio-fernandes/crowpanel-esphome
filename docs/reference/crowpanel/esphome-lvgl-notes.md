@@ -155,3 +155,15 @@ Do not use RFC2217 for flashing or reset control.
   brightness 40%, and `use_psram: false` for the LED strip. A 125 second serial
   soak showed every LCD update returning, and camera captures confirmed the
   LCD target/crosshair plus rear RGB LEDs cycling through red, green, and blue.
+- 2026-05-20: CST816 touch was added to the stable visual baseline using
+  Elecrow's ESPHome pins and transform: I2C SDA GPIO6, SCL GPIO7, address
+  `0x15`, INT GPIO5, reset GPIO13, `mirror_y: true`, and `swap_xy: true`.
+  Taps and drags produced transformed/raw coordinate logs while the LCD/RGB
+  loop continued running. Next hardware step is rotary encoder GPIO45/GPIO42
+  and knob press GPIO41.
+- 2026-05-20: Workbench temporarily became unreachable from argon with
+  incomplete ARP and `Destination Host Unreachable`; reboot restored SSH and
+  RFC2217. Current boot health was normal and journal history was volatile, so
+  no prior-boot root cause was available. If this repeats, capture uptime,
+  `vcgencmd get_throttled`, `journalctl --list-boots`, and network reachability
+  before rebooting.

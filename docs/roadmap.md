@@ -32,6 +32,9 @@
   20MHz SPI, fixed 60% GPIO46 backlight, GPIO40/GPIO1/GPIO2 enabled, and
   GPIO48 WS2812 updates with `use_psram: false`. A 125 second serial soak and
   USB camera sequence confirmed repeated LCD and rear RGB color cycling.
+- Added and flashed CST816 touchscreen logging on the stable visual diagnostic.
+  Serial logs captured transformed/raw coordinates during taps and drags while
+  the display/RGB loop continued running.
 
 ## Current repo state
 
@@ -46,7 +49,8 @@
 - Current CrowPanel flashed example: `examples/crowpanel-128-io-diagnostic/crowpanel-128-io-diagnostic.yaml`
 - Current CrowPanel diagnostic status: serial logs show phase 0/1/2 cycling
   every 5 seconds, with each LCD update returning; USB camera frames confirm
-  visible LCD target/crosshair and rear RGB color cycling.
+  visible LCD target/crosshair and rear RGB color cycling. CST816 touch logs
+  transformed and raw tap/drag coordinates.
 - Camera helpers:
   - `tools/crowpanel-camera-capture`
   - `tools/crowpanel-camera-sequence`
@@ -57,7 +61,6 @@
 ## Remaining CrowPanel project steps
 
 - Bring up hardware features incrementally:
-  - touchscreen input logging
   - rotary encoder and button logging
   - LVGL
   - Home Assistant/API/OTA only after the local hardware path is stable

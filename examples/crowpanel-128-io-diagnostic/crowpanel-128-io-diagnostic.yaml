@@ -50,6 +50,14 @@ spi:
   clk_pin: GPIO10
   mosi_pin: GPIO11
 
+i2c:
+  id: i2c_touch
+  sda: GPIO6
+  scl: GPIO7
+  scan: true
+  frequency: 400kHz
+  setup_priority: 400
+
 output:
   - platform: ledc
     id: screen_backlight_pwm
@@ -109,6 +117,23 @@ display:
       it.circle(120, 120, 76, Color(255, 255, 0));
       it.line(0, 120, 239, 120, Color(255, 255, 255));
       it.line(120, 0, 120, 239, Color(255, 255, 255));
+
+touchscreen:
+  - platform: cst816
+    id: round_touch
+    i2c_id: i2c_touch
+    address: 0x15
+    interrupt_pin: GPIO5
+    reset_pin: GPIO13
+    transform:
+      mirror_x: false
+      mirror_y: true
+      swap_xy: true
+    on_touch:
+      then:
+        - logger.log:
+            format: "Touch transformed x=%d y=%d raw_x=%d raw_y=%d"
+            args: [touch.x, touch.y, touch.x_raw, touch.y_raw]
 
 interval:
   - interval: 5s

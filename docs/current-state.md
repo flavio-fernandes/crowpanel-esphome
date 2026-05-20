@@ -57,8 +57,9 @@ The known-good throwaway example is:
   diagnostic using SCLK GPIO10, MOSI GPIO11, CS GPIO9, DC GPIO3, and reset
   GPIO14. The diagnostic runs the GC9A01A SPI bus at 20MHz, keeps backlight at
   60%, keeps GPIO40/GPIO1/GPIO2 enabled, and keeps the WS2812 buffer out of
-  PSRAM. No touch, rotary, LVGL, Wi-Fi, API, OTA, or Home Assistant integration
-  yet.
+  PSRAM. It also includes CST816 touchscreen logging over I2C GPIO6/GPIO7 with
+  INT GPIO5 and reset GPIO13. No rotary, LVGL, Wi-Fi, API, OTA, or Home
+  Assistant integration yet.
 - Serial monitor status: RFC2217 monitor shows the diagnostic firmware cycling
   phases every 5 seconds:
   - phase 0: LCD red target/crosshair, ambient red
@@ -77,6 +78,18 @@ The known-good throwaway example is:
   `Updating LCD` followed by `LCD update returned`. Camera sequence
   `artifacts/crowpanel-camera-20260520T165832Z/` visually confirmed the round
   LCD and rear RGB LEDs changing colors.
+- 2026-05-20 touchscreen validation: added CST816 touch using Elecrow's
+  ESPHome pins and transform (`address: 0x15`, SDA GPIO6, SCL GPIO7, INT
+  GPIO5, reset GPIO13, `mirror_y: true`, `swap_xy: true`). After flashing,
+  serial logs captured transformed/raw coordinates during taps and drags while
+  the display loop continued returning from LCD updates.
+- 2026-05-20 workbench outage note: the workbench temporarily became
+  unreachable from argon (`Destination Host Unreachable`, incomplete ARP for
+  `workbench.lan`). After reboot, SSH/RFC2217 recovered. Current boot health
+  looked normal: no throttling (`throttled=0x0`), low load, free memory, disk
+  35% used, and `rfc2217-portal.service` active. The previous boot was not
+  retained in `journalctl --list-boots`, so no root cause was recoverable from
+  logs.
 - Optional next debugging aid: point a camera at the CrowPanel from argon and
   capture still frames into `artifacts/` so Codex can compare visual output
   with serial logs.
