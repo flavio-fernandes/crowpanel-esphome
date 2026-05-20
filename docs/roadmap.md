@@ -125,6 +125,11 @@ recovery workflow is now validated end to end, so `esp-codex-platform` can be
 created next. Keep the first pass generic: no CrowPanel YAML, hardware facts,
 artifacts, generated firmware, secrets, or Home Assistant-specific device UI.
 
+`esp-codex-platform` has now been created locally at
+`/home/ff/src/esp-codex-platform` with initial commit
+`57c98ed Create ESP Codex platform starter`. It has not been pushed or created
+on GitHub yet.
+
 ## Things not to forget
 
 - RFC2217 is for serial monitoring only.

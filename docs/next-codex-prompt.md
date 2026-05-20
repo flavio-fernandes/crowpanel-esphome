@@ -54,7 +54,7 @@ Known caveat:
 Start by summarizing the state briefly.
 
 Then take the next step:
-Create the initial local reusable boilerplate repo for future projects, likely named esp-codex-platform, from docs/esp-codex-platform-extraction-plan.md.
+Review the local reusable boilerplate repo at /home/ff/src/esp-codex-platform and decide whether to create/push a GitHub repo for it.
 
 Constraints for the next step:
 - Do not modify the CrowPanel firmware while planning/extracting boilerplate.
@@ -62,5 +62,6 @@ Constraints for the next step:
 - Extract only reusable, boring project infrastructure and docs patterns.
 - Do not include CrowPanel-specific YAML, hardware references, artifacts, generated firmware, secrets, or workbench host private details.
 - Candidate reusable pieces: devcontainer foundation, AGENTS.md template, README template, workbench wrapper pattern, validate-workbench pattern, GitHub setup notes, docs/current-state and roadmap templates, ignored artifact/build-output patterns, and a tiny generic ESPHome blink example.
-- Create the repo locally only; ask before pushing.
+- Local repo exists at /home/ff/src/esp-codex-platform with initial commit "Create ESP Codex platform starter".
+- Ask before pushing or creating the GitHub repo.
 ```

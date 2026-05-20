@@ -169,3 +169,13 @@ The known-good throwaway example is:
 ## Current unresolved issue
 
 `gh` works in the normal argon shell, but Codex once reported invalid GitHub authentication. The initial GitHub repo creation and push were completed manually from the argon shell. Future GitHub operations from Codex should verify `gh auth status` inside Codex's own command environment before attempting GitHub operations.
+
+## Reusable platform repo
+
+- Local path: `/home/ff/src/esp-codex-platform`
+- Local initial commit: `57c98ed Create ESP Codex platform starter`
+- Status: created locally only; no GitHub repo or push yet.
+- Scope: reusable ESPHome/devcontainer/workbench starter with generic docs,
+  safe workbench wrappers, validation script, ignore rules, and generic blink
+  examples. CrowPanel-specific YAML, hardware facts, artifacts, generated
+  firmware, secrets, and Home Assistant device UI were intentionally excluded.
