@@ -128,8 +128,8 @@ artifacts, generated firmware, secrets, or Home Assistant-specific device UI.
 
 `esp-codex-platform` has now been created locally at
 the sibling `esp-codex-platform` checkout with initial commit
-`57c98ed Create ESP Codex platform starter`. It has not been pushed or created
-on GitHub yet.
+`57c98ed Create ESP Codex platform starter`. It has been created as a private
+GitHub repo and pushed.
 
 ## Things not to forget
 
@@ -152,7 +152,7 @@ Do not modify files yet.
 
 Summarize the project state.
 
-Then create the initial local `esp-codex-platform` starter repo from the extraction plan, but do not push or create GitHub without explicit approval.
+Then review the private `esp-codex-platform` starter repo and continue with the next CrowPanel/Home Assistant project requirements.
 
 Do not modify CrowPanel firmware.
 Do not flash anything.

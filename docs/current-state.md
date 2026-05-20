@@ -176,7 +176,7 @@ The known-good throwaway example is:
 
 - Local path: sibling `esp-codex-platform` checkout
 - Local initial commit: `57c98ed Create ESP Codex platform starter`
-- Status: created locally only; no GitHub repo or push yet.
+- Status: private GitHub repo created and pushed.
 - Scope: reusable ESPHome/devcontainer/workbench starter with generic docs,
   safe workbench wrappers, validation script, ignore rules, and generic blink
   examples. CrowPanel-specific YAML, hardware facts, artifacts, generated

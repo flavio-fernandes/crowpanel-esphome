@@ -54,14 +54,14 @@ Known caveat:
 Start by summarizing the state briefly.
 
 Then take the next step:
-Review the local reusable boilerplate repo and decide whether to create/push a GitHub repo for it.
+Review the private reusable boilerplate repo and continue with the next CrowPanel/Home Assistant project requirements.
 
 Constraints for the next step:
 - Do not modify the CrowPanel firmware while planning/extracting boilerplate.
-- Do not push or create a GitHub repo without explicit approval.
+- Do not push or change GitHub visibility without explicit approval.
 - Extract only reusable, boring project infrastructure and docs patterns.
 - Do not include CrowPanel-specific YAML, hardware references, artifacts, generated firmware, secrets, or workbench host private details.
 - Candidate reusable pieces: devcontainer foundation, AGENTS.md template, README template, workbench wrapper pattern, validate-workbench pattern, GitHub setup notes, docs/current-state and roadmap templates, ignored artifact/build-output patterns, and a tiny generic ESPHome blink example.
 - Local repo exists with initial commit "Create ESP Codex platform starter".
-- Ask before pushing or creating the GitHub repo.
+- Platform repo exists and has been pushed privately.
 ```
