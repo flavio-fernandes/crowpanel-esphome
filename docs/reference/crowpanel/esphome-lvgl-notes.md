@@ -142,7 +142,7 @@ Do not use RFC2217 for flashing or reset control.
   solid red rear LEDs and a fully black round LCD with no visible glow. Re-test
   visually against the fixed diagnostic before concluding the display or
   backlight path is physically bad.
-- 2026-05-20: A USB camera on argon is now usable for visual debugging through
+- 2026-05-20: A USB camera on the Linux host is now usable for visual debugging through
   `tools/crowpanel-camera-capture` and `tools/crowpanel-camera-sequence`.
   Captures after an esptool reset show the rear LEDs visually green/cyan while
   the round LCD remains black, even though serial logs continue reporting phase
@@ -167,7 +167,7 @@ Do not use RFC2217 for flashing or reset control.
   diagnostic still runs after flashing. Runtime interaction logs captured knob
   rotation in both directions plus button press/release events while touch and
   display updates continued working.
-- 2026-05-20: Workbench temporarily became unreachable from argon with
+- 2026-05-20: Workbench temporarily became unreachable from the Linux host with
   incomplete ARP and `Destination Host Unreachable`; reboot restored SSH and
   RFC2217. Current boot health was normal and journal history was volatile, so
   no prior-boot root cause was available. If this repeats, capture uptime,

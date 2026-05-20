@@ -2,13 +2,13 @@
 
 ## Completed milestones
 
-- Created the CrowPanel ESPHome workspace at `/home/ff/src/crowpanel-esphome`.
+- Created the CrowPanel ESPHome workspace.
 - Added and validated the devcontainer foundation.
 - Added reset-aware workbench wrappers in `tools/`.
 - Validated the workbench path from inside the devcontainer.
 - Built and flashed a throwaway ESPHome Feather/HUZZAH32 blink example on `SLOT1`.
 - Confirmed real GPIO13 onboard LED blinking every 500 ms.
-- Created and pushed the private GitHub repo `flavio-fernandes/crowpanel-esphome`.
+- Created and pushed the private GitHub repo.
 - Added handoff docs for future Codex threads.
 - Added and flashed a HUZZAH32 heartbeat blink example on the current SLOT1 board.
 - Captured CrowPanel primary sources, hardware facts, and ESPHome/LVGL bring-up
@@ -47,9 +47,10 @@
 
 ## Current repo state
 
-- Repo: `https://github.com/flavio-fernandes/crowpanel-esphome.git`
+- Repo: configured as `origin`; keep visibility private unless intentionally
+  publishing a sanitized public copy.
 - Branch: `main`
-- Current architecture: Mac -> VS Code SSH -> argon -> devcontainer -> workbench -> SLOT1 board
+- Current architecture: Mac -> VS Code SSH -> Linux host -> devcontainer -> workbench -> SLOT1 board
 - Known-good example: `examples/feather-huzzah32-blink/feather-huzzah32-blink.yaml`
 - Known-good heartbeat example: `examples/feather-huzzah32-heartbeat/feather-huzzah32-heartbeat.yaml`
 - Current CrowPanel baseline example: `examples/crowpanel-128-minimal/crowpanel-128-minimal.yaml`
@@ -104,7 +105,7 @@ A future reusable platform repo should be named `esp-codex-platform`.
 
 It should capture the reusable pieces that have emerged from this CrowPanel workspace:
 
-- argon bootstrap docs/scripts
+- Linux host bootstrap docs/scripts
 - workbench bootstrap docs/scripts
 - devcontainer template
 - `tools/espwb-esptool` pattern
@@ -126,7 +127,7 @@ created next. Keep the first pass generic: no CrowPanel YAML, hardware facts,
 artifacts, generated firmware, secrets, or Home Assistant-specific device UI.
 
 `esp-codex-platform` has now been created locally at
-`/home/ff/src/esp-codex-platform` with initial commit
+the sibling `esp-codex-platform` checkout with initial commit
 `57c98ed Create ESP Codex platform starter`. It has not been pushed or created
 on GitHub yet.
 

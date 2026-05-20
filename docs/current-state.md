@@ -2,7 +2,8 @@
 
 ## Repository
 
-- Repo: `https://github.com/flavio-fernandes/crowpanel-esphome.git`
+- Repo: configured as `origin`; keep visibility private unless intentionally
+  publishing a sanitized public copy.
 - Branch: `main`
 - Roadmap: `docs/roadmap.md`
 
@@ -10,12 +11,12 @@ Current validated commits:
 
 - `a4f612e` Add CrowPanel ESPHome devcontainer foundation
 - `271bd8f` Add known-good ESPHome workbench blink example
-- `529d390` Document GitHub setup for argon workflow
+- `529d390` Document GitHub setup workflow
 - `c35f23b` Add HUZZAH32 heartbeat blink example
 
 ## Architecture
 
-Mac -> VS Code SSH -> argon -> devcontainer -> workbench -> SLOT1 board
+Mac -> VS Code SSH -> Linux host -> devcontainer -> workbench -> SLOT1 board
 
 ## Known-good workflow
 
@@ -40,7 +41,8 @@ The known-good throwaway example is:
 - Detected features: Wi-Fi, Bluetooth LE, dual core, embedded 8MB PSRAM
 - Detected flash: 16MB
 - USB mode: USB-Serial/JTAG
-- MAC observed during flash-id: `3c:0f:02:db:e9:14`
+- MAC observed during flash-id: stored locally when needed; omitted from
+  committed docs.
 
 ## Current CrowPanel firmware state
 
@@ -96,7 +98,7 @@ The known-good throwaway example is:
   `auto_clear_enabled: false`, and lets LVGL render one page with a title,
   arc, status label, and button. `esphome config` passed, `esphome compile`
   succeeded, SLOT1 `flash-id` confirmed the expected ESP32-S3 QFN56 rev v0.2
-  with 8MB PSRAM, 16MB flash, and MAC `3c:0f:02:db:e9:14`, and the firmware was
+  with 8MB PSRAM and 16MB flash, and the firmware was
   flashed through `tools/espwb-esptool write-flash`. Camera capture
   `artifacts/crowpanel-camera-20260520T204817Z.jpg` visually confirmed the LVGL
   page on the round LCD and blue rear LEDs. RFC2217 was not opened during this
@@ -115,8 +117,8 @@ The known-good throwaway example is:
   capture `artifacts/crowpanel-camera-20260520T210004Z.jpg` confirmed the LVGL
   page returned.
 - 2026-05-20 workbench outage note: the workbench temporarily became
-  unreachable from argon (`Destination Host Unreachable`, incomplete ARP for
-  `workbench.lan`). After reboot, SSH/RFC2217 recovered. Current boot health
+  unreachable from the Linux host (`Destination Host Unreachable`, incomplete
+  ARP for the local workbench host). After reboot, SSH/RFC2217 recovered. Current boot health
   looked normal: no throttling (`throttled=0x0`), low load, free memory, disk
   35% used, and `rfc2217-portal.service` active. The previous boot was not
   retained in `journalctl --list-boots`, so no root cause was recoverable from
@@ -135,10 +137,10 @@ The known-good throwaway example is:
 - 2026-05-20 tooling correction: the project workbench SSH wrappers now ignore
   global SSH config by default with `SSH_CONFIG=/dev/null`, because a malformed
   host SSH config can break project-local workbench commands before they connect.
-  If `/host-ssh` is not mounted in the Codex session, set
-  `ESPWB_SSH_KEY=/home/ff/.ssh/id_rsa` locally when running the workbench
-  wrappers. Do not print or commit key contents.
-- Camera debugging is available on argon:
+  If `/host-ssh` is not mounted in the Codex session, set `ESPWB_SSH_KEY`
+  locally when running the workbench wrappers. Do not print or commit key
+  contents.
+- Camera debugging is available on the Linux host:
   - USB device: Creative Technology Live! Cam Chat HD
   - Stable V4L path:
     `/dev/v4l/by-id/usb-Creative_Technology_Ltd._Live__Cam_Chat_HD_VF0790_2015032504121-video-index0`
@@ -168,11 +170,11 @@ The known-good throwaway example is:
 
 ## Current unresolved issue
 
-`gh` works in the normal argon shell, but Codex once reported invalid GitHub authentication. The initial GitHub repo creation and push were completed manually from the argon shell. Future GitHub operations from Codex should verify `gh auth status` inside Codex's own command environment before attempting GitHub operations.
+`gh` works in the normal shell, but Codex once reported invalid GitHub authentication. The initial GitHub repo creation and push were completed manually from the shell. Future GitHub operations from Codex should verify `gh auth status` inside Codex's own command environment before attempting GitHub operations.
 
 ## Reusable platform repo
 
-- Local path: `/home/ff/src/esp-codex-platform`
+- Local path: sibling `esp-codex-platform` checkout
 - Local initial commit: `57c98ed Create ESP Codex platform starter`
 - Status: created locally only; no GitHub repo or push yet.
 - Scope: reusable ESPHome/devcontainer/workbench starter with generic docs,

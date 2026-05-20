@@ -2,7 +2,7 @@
 
 ## Current session title
 
-10 -- CrowPanel ESPHome LVGL Devcontainer on Argon + ESP Workbench
+10 -- CrowPanel ESPHome LVGL Devcontainer on Linux Host + ESP Workbench
 
 ## Suggested next session title
 
@@ -10,7 +10,7 @@
 
 ## Goal
 
-Use VS Code from Mac, SSH into argon, and from argon use Docker/devcontainers that interact with the ESP workbench.
+Use VS Code from Mac, SSH into a Linux host, and from there use Docker/devcontainers that interact with the ESP workbench.
 
 Target firmware stack:
 
@@ -20,19 +20,17 @@ Target firmware stack:
 
 ## Current architecture
 
-Mac -> VS Code SSH / regular ssh to argon -> argon runs Docker and devcontainers -> argon reaches workbench over isolated LAN -> workbench controls ESP boards over USB
+Mac -> VS Code SSH / regular ssh to Linux host -> Linux host runs Docker and devcontainers -> Linux host reaches workbench over isolated LAN -> workbench controls ESP boards over USB
 
 ## Network facts
 
 - Mac cannot directly reach workbench.
-- Mac can SSH to argon using `ssh ff@argon`.
-- argon hostname: `argon`
-- argon user: `ff`
-- argon Tailscale host: `argon.tail76a4e5.ts.net`
+- Mac can SSH to the Linux host.
+- Linux host name/user: local setup value, not committed.
 - workbench hostname: `workbench`
 - workbench user: `pi`
-- workbench IP: `192.168.1.235`
-- workbench API from argon: `http://192.168.1.235:8080`
+- workbench IP: local setup value in ignored `config/workbench.env`
+- workbench API from Linux host: `${WORKBENCH_URL}`
 - workbench service: `rfc2217-portal`
 
 ## Important flashing rule
@@ -48,7 +46,7 @@ For chip-id, flash-id, read-flash, write-flash, and firmware flashing, SSH to wo
 Example:
 
 ```bash
-ssh pi@192.168.1.235 /usr/local/bin/espwb-local-esptool SLOT1 flash-id
+tools/espwb-esptool flash-id
 ```
 
 ## Validated Step 10A
@@ -57,31 +55,31 @@ Step 10A passed with no warnings or failures.
 
 Validated:
 
-- workspace skeleton exists at `/home/ff/src/crowpanel-esphome`
-- baseline path exists: `/home/ff/espwb-baseline-20260517-112011`
-- argon arch is `aarch64`
+- workspace skeleton exists
+- baseline path exists locally
+- Linux host arch is `aarch64`
 - Docker works without sudo
 - Docker Engine observed: `29.5.0`
 - docker buildx available
 - docker compose available
 - devcontainer CLI observed: `0.87.0`
-- argon can reach workbench API
+- Linux host can reach workbench API
 - workbench API showed `slots_configured: 7`, `slots_running: 1`
 - SSH to workbench works
 - `/usr/local/bin/espwb-local-esptool` exists and is executable
 - `SLOT1 flash-id` works through the reset-aware helper
 - workbench API came back after flash-id
-- smoke wrapper exists at `/home/ff/src/espwb-smoke/tools/espwb-esptool`
+- smoke wrapper exists locally
 
 Detected board in SLOT1 during Step 10A:
 
 - ESP32-D0WDQ6 revision v1.0
-- MAC: `ac:67:b2:09:e9:5c`
+- MAC: observed locally; omitted from committed docs
 - flash size: 4MB
 
 ## Workspace
 
-`/home/ff/src/crowpanel-esphome`
+This repository checkout.
 
 Expected directories:
 
@@ -93,13 +91,13 @@ Expected directories:
 
 ## Codex guardrails
 
-Codex may edit files inside `/home/ff/src/crowpanel-esphome`.
+Codex may edit files inside this workspace.
 
 Codex must not:
 
 - run `sudo`
 - modify files outside this workspace
-- modify `/home/ff/.ssh`
+- modify SSH key directories
 - print or copy private keys
 - commit secrets
 - push to GitHub without explicit review

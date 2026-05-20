@@ -5,7 +5,7 @@ Paste this into a fresh Codex thread:
 ```text
 Read AGENTS.md, README.md, docs/current-state.md, docs/roadmap.md, docs/esphome-workbench-cheatsheet.md, docs/github-setup.md, docs/project-sources.md, docs/reference/crowpanel/hardware-facts.md, docs/reference/crowpanel/esphome-lvgl-notes.md, and docs/esp-codex-platform-extraction-plan.md.
 
-We are working in /home/ff/src/crowpanel-esphome on the Elecrow CrowPanel 1.28 inch HMI ESP32 rotary display in workbench SLOT1.
+We are working in the CrowPanel ESPHome repo on the Elecrow CrowPanel 1.28 inch HMI ESP32 rotary display in workbench SLOT1.
 
 Current pushed commit on main should be:
 Add CrowPanel LVGL diagnostic
@@ -23,7 +23,7 @@ Important safety/workflow constraints:
 Validated hardware baseline:
 - Current flashed example: examples/crowpanel-128-lvgl-diagnostic/crowpanel-128-lvgl-diagnostic.yaml
 - Previous known-good IO diagnostic: examples/crowpanel-128-io-diagnostic/crowpanel-128-io-diagnostic.yaml
-- Board identity: ESP32-S3 QFN56 rev v0.2, 8MB embedded PSRAM, 16MB flash, USB-Serial/JTAG, MAC 3c:0f:02:db:e9:14.
+- Board identity: ESP32-S3 QFN56 rev v0.2, 8MB embedded PSRAM, 16MB flash, USB-Serial/JTAG.
 - Display works with ESPHome ili9xxx GC9A01A at 20MHz.
 - Display pins: SCLK GPIO10, MOSI GPIO11, CS GPIO9, DC GPIO3, reset GPIO14.
 - Backlight/control outputs: GPIO46 LEDC at 60%, GPIO40 on, GPIO1/GPIO2 on.
@@ -47,14 +47,14 @@ Known caveat:
 - Camera-only observation shows the diagnostic can keep looping without an active serial monitor.
 - logger.deassert_rts_dtr: true was tested and did not fix the RFC2217-close blank/frozen behavior.
 - Current workaround: after closing a serial monitor, reset/recover through:
-  ESPWB_SSH_KEY=/home/ff/.ssh/id_rsa tools/espwb-esptool flash-id
-- The project wrappers ignore global SSH config by default with SSH_CONFIG=/dev/null. If /host-ssh is not mounted in Codex, pass ESPWB_SSH_KEY=/home/ff/.ssh/id_rsa without printing key contents.
+  ESPWB_SSH_KEY=/path/to/workbench/key tools/espwb-esptool flash-id
+- The project wrappers ignore global SSH config by default with SSH_CONFIG=/dev/null. If /host-ssh is not mounted in Codex, set ESPWB_SSH_KEY locally without printing key contents.
 - tools/validate-workbench.sh skips the RFC2217 open/close test by default; RUN_RFC2217_TEST=1 is only for intentional monitor-path debugging.
 
 Start by summarizing the state briefly.
 
 Then take the next step:
-Review the local reusable boilerplate repo at /home/ff/src/esp-codex-platform and decide whether to create/push a GitHub repo for it.
+Review the local reusable boilerplate repo and decide whether to create/push a GitHub repo for it.
 
 Constraints for the next step:
 - Do not modify the CrowPanel firmware while planning/extracting boilerplate.
@@ -62,6 +62,6 @@ Constraints for the next step:
 - Extract only reusable, boring project infrastructure and docs patterns.
 - Do not include CrowPanel-specific YAML, hardware references, artifacts, generated firmware, secrets, or workbench host private details.
 - Candidate reusable pieces: devcontainer foundation, AGENTS.md template, README template, workbench wrapper pattern, validate-workbench pattern, GitHub setup notes, docs/current-state and roadmap templates, ignored artifact/build-output patterns, and a tiny generic ESPHome blink example.
-- Local repo exists at /home/ff/src/esp-codex-platform with initial commit "Create ESP Codex platform starter".
+- Local repo exists with initial commit "Create ESP Codex platform starter".
 - Ask before pushing or creating the GitHub repo.
 ```

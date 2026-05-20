@@ -2,14 +2,15 @@
 
 ## Current architecture
 
-Mac -> VS Code SSH -> argon -> devcontainer -> workbench -> SLOT1 board
+Mac -> VS Code SSH -> Linux host -> devcontainer -> workbench -> SLOT1 board
 
 ## Required assumptions
 
-- Docker works without `sudo` on argon.
-- The devcontainer CLI works on argon.
-- The workbench API is reachable at `http://192.168.1.235:8080`.
-- SSH to `pi@192.168.1.235` works.
+- Docker works without `sudo` on the Linux host.
+- The devcontainer CLI works on the Linux host.
+- Local workbench settings are in ignored `config/workbench.env`.
+- The workbench API is reachable at `${WORKBENCH_URL}`.
+- SSH to `${WORKBENCH_USER}@${WORKBENCH_IP}` works.
 - `/usr/local/bin/espwb-local-esptool` exists on the workbench.
 - `SLOT1` is the only safe default slot.
 
@@ -73,7 +74,8 @@ state after RFC2217 close.
 - If the workbench API does not come back after esptool, check `rfc2217-portal` on the workbench.
 - If `ssh` fails before connecting because of host SSH config, the project
   wrappers default to `SSH_CONFIG=/dev/null`; if `/host-ssh` is not mounted,
-  pass `ESPWB_SSH_KEY=/home/ff/.ssh/id_rsa` without printing key contents.
+  set `ESPWB_SSH_KEY` in `config/workbench.env` or in the shell without
+  printing key contents.
 - If compile is slow, this is expected on first run because caches are being populated.
 
 ## Safety rules

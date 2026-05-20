@@ -12,11 +12,11 @@
   "workspaceFolder": "/workspaces/crowpanel-esphome",
   "remoteUser": "vscode",
   "containerEnv": {
-    "WORKBENCH_IP": "192.168.1.235",
+    "WORKBENCH_IP": "192.0.2.10",
     "WORKBENCH_USER": "pi",
-    "WORKBENCH_URL": "http://192.168.1.235:8080",
+    "WORKBENCH_URL": "http://192.0.2.10:8080",
     "ESPWB_SLOT": "SLOT1",
-    "ESP_PORT": "rfc2217://192.168.1.235:4001?ign_set_control",
+    "ESP_PORT": "rfc2217://192.0.2.10:4001?ign_set_control",
     "PLATFORMIO_CORE_DIR": "/cache/platformio",
     "PIP_CACHE_DIR": "/cache/pip"
   },

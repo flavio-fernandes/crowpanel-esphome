@@ -1,6 +1,6 @@
 # Codex instructions for this workspace
 
-Scope: `/home/ff/src/crowpanel-esphome` only.
+Scope: this workspace only.
 
 Safe things to do:
 
@@ -17,7 +17,7 @@ Do not do these without explicit user approval:
 - Do not run `sudo`.
 - Do not run `sudo` for Docker, SSH keys, systemd, Tailscale, firewall, `/usr/local/bin`, or workbench service changes.
 - Do not modify files outside this workspace.
-- Do not modify `/home/ff/.ssh` or `/host-ssh`.
+- Do not modify SSH key directories.
 - Do not print, copy, commit, or upload private keys, tokens, passwords, or `secrets.yaml`.
 - Do not push to GitHub.
 - Do not flash slots other than `SLOT1`.

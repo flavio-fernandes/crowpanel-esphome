@@ -7,13 +7,13 @@ Long-term goal: turn the CrowPanel workspace pattern into a reusable, boringly r
 - Verify OS, architecture, Docker Engine, Docker Compose, and devcontainer CLI.
 - Confirm the user can run Docker without `sudo`.
 - Install only the small developer tools needed for local workflow, after approval.
-- Create a standard workspace layout under `/home/ff/src/`.
+- Create a standard workspace layout under the user's source directory.
 - Capture baseline logs under project-local `artifacts/`.
 - Document network facts, SSH access, and any host-specific assumptions.
 
 ## Workbench bootstrap
 
-- Verify workbench API reachability from argon.
+- Verify workbench API reachability from the Linux host.
 - Verify SSH access to the workbench without exposing private keys.
 - Verify `/usr/local/bin/espwb-local-esptool` exists and is executable.
 - Confirm slot inventory and default the project to `SLOT1`.

@@ -2,7 +2,7 @@
 
 Goal: develop ESPHome + LVGL firmware for the Elecrow CrowPanel 1.28 inch ESP32 rotary display using this path:
 
-Mac -> VS Code SSH -> argon -> Docker/devcontainer -> ESP workbench -> USB ESP board
+Mac -> VS Code SSH -> Linux host -> Docker/devcontainer -> ESP workbench -> USB ESP board
 
 Current safety rule:
 
@@ -12,11 +12,19 @@ Current safety rule:
 
 Important paths:
 
-- Workspace on argon: `/home/ff/src/crowpanel-esphome`
-- Workbench API: `http://192.168.1.235:8080`
+- Workspace: this repository checkout
+- Local workbench settings: `config/workbench.env`
+- Workbench API: `${WORKBENCH_URL}`
 - Workbench helper: `/usr/local/bin/espwb-local-esptool`
 - Default slot: `SLOT1`
-- Default RFC2217 monitor port: `rfc2217://192.168.1.235:4001?ign_set_control`
+- Default RFC2217 monitor port: `${ESP_PORT}`
+
+First-time local setup:
+
+```bash
+cp config/workbench.env.example config/workbench.env
+$EDITOR config/workbench.env
+```
 
 Useful commands inside the devcontainer:
 

@@ -96,7 +96,7 @@ esp-codex-platform/
 
 ## Open choices before creating the repo
 
-- Repo location on argon: likely `/home/ff/src/esp-codex-platform`.
+- Repo location: sibling checkout next to this project.
 - GitHub visibility: private by default.
 - Template style: plain starter repo first; Cookiecutter or Copier can come
   later if the plain version proves useful.
