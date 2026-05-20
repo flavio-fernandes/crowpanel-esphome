@@ -1,0 +1,157 @@
+# ESPHome and LVGL notes for CrowPanel
+
+Captured: 2026-05-19
+
+This is not firmware. It is the compatibility and bring-up plan before creating
+the first CrowPanel ESPHome YAML.
+
+## Capability mapping
+
+| CrowPanel feature | Likely ESPHome component path | Notes |
+| --- | --- | --- |
+| ESP32-S3R8 MCU | `esp32`, ESP-IDF framework likely preferred | Need select a board id and PSRAM/flash settings deliberately. |
+| GC9A01A 240 x 240 SPI display | `display: ili9xxx` first; `mipi_spi` later | Elecrow's ESPHome lessons and bruxy70 `esphome-lvgl` guidance use `ili9xxx` for GC9A01A round displays. ESPHome 2026.4.5 deprecates `ili9xxx` in favor of `mipi_spi`, but the first `mipi_spi` test stayed blank on this board. |
+| CST816D capacitive touch | `touchscreen: cst816` | ESPHome `cst816` requires I2C and supports the CST816 family. |
+| Rotary knob rotation | `sensor: rotary_encoder` | Use GPIO45/GPIO42 from Elecrow. Direction can be reversed by swapping A/B in config. |
+| Knob press | `binary_sensor: gpio` | GPIO41. Useful as an LVGL select/enter input later. |
+| Backlight | `output` plus `light`, or simple GPIO first | GPIO46 is a strapping pin; bring this up carefully after boot. |
+| Ambient LEDs | `light: esp32_rmt_led_strip` or equivalent addressable LED path | GPIO48, 5 WS2812 LEDs. Defer until basic display/touch/encoder are stable. |
+| SSD1306 OLED | `display: ssd1306_i2c` | Present on GPIO38/GPIO39, but not needed for first CrowPanel display bring-up. |
+| Home Assistant | `api`, HA sensor imports, services, events | Add after the local UI and hardware path are stable. |
+| LVGL UI | `lvgl` | ESPHome LVGL supports displays, touchscreens, and rotary encoder style input. |
+
+## ESPHome/LVGL constraints to remember
+
+- LVGL should own rendering once enabled.
+- The graphical display should avoid a `lambda` once LVGL is driving it.
+- ESPHome LVGL docs recommend `auto_clear_enabled: false` and usually
+  `update_interval: never` for displays used by LVGL.
+- Touch can be added before LVGL as a hardware validation step.
+- Rotary can be added before LVGL as a sensor validation step.
+- Home Assistant integration should wait until the local hardware loop is known
+  good, so network/API issues do not get mixed with display/touch bugs.
+- Home Assistant service/action calls from ESPHome require explicitly enabling
+  that device to perform HA actions in the ESPHome integration settings.
+- For the 240 x 240 round display, design UI screens as 240 x 240 SVG mockups
+  first when the layout is non-trivial; remember that pixels outside the
+  inscribed circle are physically hidden.
+- Keep the first LVGL page static and boring: one display, one touchscreen, one
+  page, a small font set, and no Home Assistant entities until rendering and
+  input are proven.
+
+## LVGL YAML shape to prefer later
+
+For the first real LVGL YAML, keep sections in this order:
+
+1. `substitutions`
+2. `esphome`
+3. `esp32`
+4. `psram`
+5. `logger`
+6. `i2c`
+7. `output`
+8. `light`
+9. `touchscreen`
+10. `display`
+11. `image`
+12. `font`
+13. `lvgl`
+14. `sensor`, `text_sensor`, `binary_sensor`, `switch`, `number`
+
+Notes from `bruxy70/ha-development`:
+
+- Use lowercase snake_case IDs.
+- Define fonts and images before LVGL references them.
+- Prefer `style_definitions` for repeated LVGL styles.
+- Use `on_release` rather than `on_value` for sliders/arcs that call Home
+  Assistant services.
+- Use `scrollbar_mode: "off"` and `scrollable: false` on containers that
+  should not capture drag gestures.
+- For arc widgets, consider `adv_hittest: true` so touches through the center
+  do not trigger the arc accidentally.
+- Lambda text must return the type ESPHome expects, usually `std::string` for
+  dynamic label text.
+
+## Recommended bring-up sequence
+
+1. Confirm physical SLOT1 identity after the CrowPanel is installed.
+2. Create the smallest ESP32-S3 ESPHome YAML with serial logger only.
+3. Validate with `esphome config`.
+4. Compile without flashing first.
+5. Flash only through `tools/espwb-esptool` on `SLOT1`.
+6. Add one low-risk GPIO indicator or backlight test after boot.
+7. Add SPI display with a built-in test card or minimal native rendering.
+8. Add CST816D touch and log touch events.
+9. Add rotary encoder and knob press logging.
+10. Add LVGL with one static page.
+11. Add Home Assistant API/imported entities and UI interactions.
+
+## First YAML should not include
+
+- LVGL.
+- Home Assistant API.
+- OTA.
+- Wi-Fi credentials beyond what is strictly necessary, if any.
+- Display, touch, rotary, OLED, and WS2812 all at once.
+- Any large UI definition.
+
+## Early validation commands
+
+Use the existing workbench flow:
+
+```bash
+devcontainer exec --workspace-folder . esphome config <crowpanel-yaml>
+devcontainer exec --workspace-folder . esphome compile <crowpanel-yaml>
+devcontainer exec --workspace-folder . tools/espwb-esptool flash-id
+```
+
+Only after config, compile, and identity checks pass:
+
+```bash
+devcontainer exec --workspace-folder . tools/espwb-esptool write-flash 0x0 <firmware.factory.bin>
+```
+
+Do not use RFC2217 for flashing or reset control.
+
+## Bring-up notes
+
+- 2026-05-19: `examples/crowpanel-128-backlight/crowpanel-128-backlight.yaml`
+  compiled and flashed, but the screen remained visually blank because that
+  firmware did not initialize or draw to the GC9A01A panel.
+- 2026-05-19: `examples/crowpanel-128-display-test/crowpanel-128-display-test.yaml`
+  validated, compiled, and flashed. It enables GPIO46 on boot and draws a
+  native ESPHome `mipi_spi` GC9A01A color quadrant/crosshair pattern. Awaiting
+  visual confirmation on the physical LCD.
+- 2026-05-20: The `mipi_spi` display test remained blank on the physical LCD.
+  Elecrow's own ESPHome lessons for this exact 1.28 inch rotary CrowPanel use
+  `display: ili9xxx`, `model: GC9A01A`, GPIO9 CS, GPIO3 DC, GPIO14 reset,
+  GPIO10 SCLK, GPIO11 MOSI, GPIO46 LEDC backlight, `invert_colors: true`, and
+  `show_test_card: true` for bring-up. The local display test is being adjusted
+  to match that known Elecrow ESPHome path.
+- 2026-05-20: `examples/crowpanel-128-io-diagnostic/crowpanel-128-io-diagnostic.yaml`
+  validated, compiled, and flashed. Runtime logs confirm the diagnostic cycles
+  every 3 seconds through GPIO48 ambient LEDs, GPIO46 backlight levels, GPIO40,
+  and LCD fill updates. Awaiting physical observation of which outputs actually
+  change.
+- 2026-05-20: The diagnostic now also drives GPIO1 and GPIO2, matching
+  Elecrow's `out1` and `out2` examples. An intermediate build boot-looped
+  because `on_boot` priority `800` attempted to set GPIO46 LEDC before the
+  output was initialized. The flashed build now uses `on_boot` priority `-100`;
+  serial logs show phase 0/1/2 advancing without the LEDC panic.
+- 2026-05-20: Last physical observation before the `on_boot` priority fix was
+  solid red rear LEDs and a fully black round LCD with no visible glow. Re-test
+  visually against the fixed diagnostic before concluding the display or
+  backlight path is physically bad.
+- 2026-05-20: A USB camera on argon is now usable for visual debugging through
+  `tools/crowpanel-camera-capture` and `tools/crowpanel-camera-sequence`.
+  Captures after an esptool reset show the rear LEDs visually green/cyan while
+  the round LCD remains black, even though serial logs continue reporting phase
+  0/1/2. Next display/LED diagnostics should be camera-friendly: keep backlight
+  at 100%, avoid same-period camera/firmware timing, and change one visible
+  output at a time.
+- 2026-05-20: The tuned IO diagnostic is stable enough to serve as the current
+  visual baseline. Changes that mattered: `ili9xxx` GC9A01A `data_rate: 20MHz`,
+  constant 60% GPIO46 backlight, GPIO40/GPIO1/GPIO2 held on, GPIO48 WS2812
+  brightness 40%, and `use_psram: false` for the LED strip. A 125 second serial
+  soak showed every LCD update returning, and camera captures confirmed the
+  LCD target/crosshair plus rear RGB LEDs cycling through red, green, and blue.

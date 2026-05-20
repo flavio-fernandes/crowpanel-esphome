@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+DEVICE="${CROWPANEL_CAMERA_DEVICE:-/dev/v4l/by-id/usb-Creative_Technology_Ltd._Live__Cam_Chat_HD_VF0790_2015032504121-video-index0}"
+WIDTH="${CROWPANEL_CAMERA_WIDTH:-1280}"
+HEIGHT="${CROWPANEL_CAMERA_HEIGHT:-720}"
+SKIP="${CROWPANEL_CAMERA_SKIP:-10}"
+OUT=""
+
+usage() {
+  cat <<USAGE
+Usage:
+  tools/crowpanel-camera-capture [output.jpg]
+
+Environment:
+  CROWPANEL_CAMERA_DEVICE  V4L2 camera device path
+  CROWPANEL_CAMERA_WIDTH   capture width, default 1280
+  CROWPANEL_CAMERA_HEIGHT  capture height, default 720
+  CROWPANEL_CAMERA_SKIP    frames to skip before capture, default 10
+
+Default output:
+  artifacts/crowpanel-camera-<timestamp>.jpg
+USAGE
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  usage
+  exit 0
+fi
+
+if [[ "$#" -gt 1 ]]; then
+  usage >&2
+  exit 2
+fi
+
+need() {
+  command -v "$1" >/dev/null 2>&1 || {
+    echo "missing required command: $1" >&2
+    exit 1
+  }
+}
+
+need date
+need mkdir
+need v4l2-ctl
+
+if [[ ! -e "$DEVICE" ]]; then
+  echo "camera device not found: $DEVICE" >&2
+  exit 1
+fi
+
+OUT="${1:-artifacts/crowpanel-camera-$(date -u +%Y%m%dT%H%M%SZ).jpg}"
+mkdir -p "$(dirname "$OUT")"
+
+v4l2-ctl \
+  --device "$DEVICE" \
+  --set-fmt-video="width=${WIDTH},height=${HEIGHT},pixelformat=MJPG" \
+  --stream-mmap \
+  --stream-skip="$SKIP" \
+  --stream-count=1 \
+  --stream-to="$OUT" >/dev/null
+
+printf '%s\n' "$OUT"

@@ -1,0 +1,178 @@
+esphome:
+  name: crowpanel-128-io-diagnostic
+  friendly_name: CrowPanel 1.28 IO Diagnostic
+  platformio_options:
+    build_flags: "-DBOARD_HAS_PSRAM"
+    board_build.esp-idf.memory_type: qio_opi
+    board_build.flash_mode: dio
+  on_boot:
+    priority: -100
+    then:
+      - logger.log: "CrowPanel IO diagnostic boot"
+      - output.set_level:
+          id: screen_backlight_pwm
+          level: 60%
+      - output.turn_on: power_light
+      - output.turn_on: out1_enable
+      - output.turn_on: out2_enable
+      - light.turn_on:
+          id: ambient_leds
+          red: 100%
+          green: 0%
+          blue: 0%
+          brightness: 40%
+          transition_length: 0s
+      - logger.log: "Boot outputs set; updating LCD"
+      - component.update: round_display
+      - logger.log: "Boot LCD update returned"
+
+esp32:
+  board: esp32-s3-devkitc-1
+  flash_size: 16MB
+  framework:
+    type: esp-idf
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+logger:
+  level: DEBUG
+
+globals:
+  - id: diagnostic_phase
+    type: int
+    restore_value: false
+    initial_value: "0"
+
+spi:
+  id: spi_bus
+  clk_pin: GPIO10
+  mosi_pin: GPIO11
+
+output:
+  - platform: ledc
+    id: screen_backlight_pwm
+    frequency: 5000Hz
+    pin:
+      number: GPIO46
+      ignore_strapping_warning: true
+  - platform: gpio
+    id: power_light
+    pin: GPIO40
+  - platform: gpio
+    id: out1_enable
+    pin: GPIO1
+  - platform: gpio
+    id: out2_enable
+    pin: GPIO2
+
+light:
+  - platform: esp32_rmt_led_strip
+    id: ambient_leds
+    name: Ambient LEDs
+    internal: true
+    pin: GPIO48
+    num_leds: 5
+    chipset: WS2812
+    rgb_order: GRB
+    restore_mode: ALWAYS_OFF
+    default_transition_length: 0s
+    use_psram: false
+
+display:
+  - platform: ili9xxx
+    id: round_display
+    model: GC9A01A
+    cs_pin: GPIO9
+    dc_pin:
+      number: GPIO3
+      ignore_strapping_warning: true
+    reset_pin: GPIO14
+    dimensions:
+      width: 240
+      height: 240
+    invert_colors: true
+    rotation: 0
+    data_rate: 20MHz
+    update_interval: never
+    lambda: |-
+      if (id(diagnostic_phase) == 0) {
+        it.fill(Color(255, 0, 0));
+      } else if (id(diagnostic_phase) == 1) {
+        it.fill(Color(0, 255, 0));
+      } else {
+        it.fill(Color(0, 0, 255));
+      }
+      it.filled_circle(120, 120, 64, Color(0, 0, 0));
+      it.circle(120, 120, 112, Color(255, 255, 255));
+      it.circle(120, 120, 76, Color(255, 255, 0));
+      it.line(0, 120, 239, 120, Color(255, 255, 255));
+      it.line(120, 0, 120, 239, Color(255, 255, 255));
+
+interval:
+  - interval: 5s
+    then:
+      - lambda: |-
+          id(diagnostic_phase) = (id(diagnostic_phase) + 1) % 3;
+          ESP_LOGD("diag", "phase=%d begin", id(diagnostic_phase));
+      - if:
+          condition:
+            lambda: "return id(diagnostic_phase) == 0;"
+          then:
+            - logger.log: "Diagnostic phase 0: LCD red, ambient red"
+            - output.set_level:
+                id: screen_backlight_pwm
+                level: 60%
+            - output.turn_on: power_light
+            - output.turn_on: out1_enable
+            - output.turn_on: out2_enable
+            - light.turn_on:
+                id: ambient_leds
+                red: 100%
+                green: 0%
+                blue: 0%
+                brightness: 40%
+                transition_length: 0s
+            - logger.log: "Diagnostic phase 0: ambient command returned"
+      - if:
+          condition:
+            lambda: "return id(diagnostic_phase) == 1;"
+          then:
+            - logger.log: "Diagnostic phase 1: LCD green, ambient green"
+            - output.set_level:
+                id: screen_backlight_pwm
+                level: 60%
+            - output.turn_on: power_light
+            - output.turn_on: out1_enable
+            - output.turn_on: out2_enable
+            - light.turn_on:
+                id: ambient_leds
+                red: 0%
+                green: 100%
+                blue: 0%
+                brightness: 40%
+                transition_length: 0s
+            - logger.log: "Diagnostic phase 1: ambient command returned"
+      - if:
+          condition:
+            lambda: "return id(diagnostic_phase) == 2;"
+          then:
+            - logger.log: "Diagnostic phase 2: LCD blue, ambient blue"
+            - output.set_level:
+                id: screen_backlight_pwm
+                level: 60%
+            - output.turn_on: power_light
+            - output.turn_on: out1_enable
+            - output.turn_on: out2_enable
+            - light.turn_on:
+                id: ambient_leds
+                red: 0%
+                green: 0%
+                blue: 100%
+                brightness: 40%
+                transition_length: 0s
+            - logger.log: "Diagnostic phase 2: ambient command returned"
+      - logger.log: "Updating LCD"
+      - component.update: round_display
+      - logger.log: "LCD update returned"

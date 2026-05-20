@@ -10,6 +10,28 @@
 - Confirmed real GPIO13 onboard LED blinking every 500 ms.
 - Created and pushed the private GitHub repo `flavio-fernandes/crowpanel-esphome`.
 - Added handoff docs for future Codex threads.
+- Added and flashed a HUZZAH32 heartbeat blink example on the current SLOT1 board.
+- Captured CrowPanel primary sources, hardware facts, and ESPHome/LVGL bring-up
+  notes locally under `docs/reference/crowpanel/`.
+- Installed the CrowPanel in SLOT1, confirmed ESP32-S3 with 8MB PSRAM and 16MB
+  flash, backed up the factory/demo firmware, and flashed a minimal ESPHome
+  logger-only build.
+- Added and flashed a GPIO46 backlight pulse example for the CrowPanel.
+- Added, validated, compiled, and flashed a GC9A01A `mipi_spi` display test
+  pattern for the CrowPanel; the physical LCD stayed blank.
+- Reworked the display test to match Elecrow's own ESPHome lessons
+  (`ili9xxx`, `model: GC9A01A`, `show_test_card: true`, GPIO46 LEDC
+  backlight), compiled and flashed it, and confirmed serial heartbeat logs.
+- Added, validated, compiled, and flashed a CrowPanel IO diagnostic example
+  that cycles GPIO48 ambient LEDs, GPIO46 backlight levels, GPIO40, and LCD fill
+  colors while logging each phase.
+- Fixed the IO diagnostic `on_boot` priority after serial logs showed LEDC was
+  not initialized at priority `800`; the currently flashed build uses priority
+  `-100`.
+- Stabilized the CrowPanel visual diagnostic by using `ili9xxx` GC9A01A at
+  20MHz SPI, fixed 60% GPIO46 backlight, GPIO40/GPIO1/GPIO2 enabled, and
+  GPIO48 WS2812 updates with `use_psram: false`. A 125 second serial soak and
+  USB camera sequence confirmed repeated LCD and rear RGB color cycling.
 
 ## Current repo state
 
@@ -17,22 +39,26 @@
 - Branch: `main`
 - Current architecture: Mac -> VS Code SSH -> argon -> devcontainer -> workbench -> SLOT1 board
 - Known-good example: `examples/feather-huzzah32-blink/feather-huzzah32-blink.yaml`
+- Known-good heartbeat example: `examples/feather-huzzah32-heartbeat/feather-huzzah32-heartbeat.yaml`
+- Current CrowPanel baseline example: `examples/crowpanel-128-minimal/crowpanel-128-minimal.yaml`
+- Current CrowPanel backlight example: `examples/crowpanel-128-backlight/crowpanel-128-backlight.yaml`
+- Current CrowPanel display test example: `examples/crowpanel-128-display-test/crowpanel-128-display-test.yaml`
+- Current CrowPanel flashed example: `examples/crowpanel-128-io-diagnostic/crowpanel-128-io-diagnostic.yaml`
+- Current CrowPanel diagnostic status: serial logs show phase 0/1/2 cycling
+  every 5 seconds, with each LCD update returning; USB camera frames confirm
+  visible LCD target/crosshair and rear RGB color cycling.
+- Camera helpers:
+  - `tools/crowpanel-camera-capture`
+  - `tools/crowpanel-camera-sequence`
+- Latest validation capture directory:
+  `artifacts/crowpanel-camera-20260520T165832Z/`
 - Known-good workflow: ESPHome YAML -> `esphome config` -> `esphome compile` -> `tools/espwb-esptool write-flash` -> real GPIO13 blink.
 
 ## Remaining CrowPanel project steps
 
-- Capture Elecrow CrowPanel reference material locally.
-- Identify and record the CrowPanel pinout, display controller, touch controller, rotary encoder pins, backlight behavior, and any boot/strap-sensitive pins.
-- Create the first minimal CrowPanel ESPHome YAML in a small step.
-- Validate `esphome config` before compiling.
-- Compile the minimal CrowPanel firmware before adding display or LVGL complexity.
-- Flash only through `tools/espwb-esptool` on `SLOT1`.
 - Bring up hardware features incrementally:
-  - serial logger
-  - backlight GPIO or PWM
-  - display bus and panel
-  - touch
-  - rotary encoder
+  - touchscreen input logging
+  - rotary encoder and button logging
   - LVGL
   - Home Assistant/API/OTA only after the local hardware path is stable
 - Record each validated milestone in docs before expanding the YAML.

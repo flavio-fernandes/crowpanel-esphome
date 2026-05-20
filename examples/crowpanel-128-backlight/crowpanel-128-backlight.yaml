@@ -1,0 +1,31 @@
+esphome:
+  name: crowpanel-128-backlight
+  friendly_name: CrowPanel 1.28 Backlight
+
+esp32:
+  board: esp32-s3-devkitc-1
+  flash_size: 16MB
+  framework:
+    type: esp-idf
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+logger:
+
+switch:
+  - platform: gpio
+    id: screen_backlight
+    internal: true
+    restore_mode: ALWAYS_OFF
+    pin:
+      number: GPIO46
+      ignore_strapping_warning: true
+
+interval:
+  - interval: 2500ms
+    then:
+      - switch.turn_on: screen_backlight
+      - delay: 1500ms
+      - switch.turn_off: screen_backlight

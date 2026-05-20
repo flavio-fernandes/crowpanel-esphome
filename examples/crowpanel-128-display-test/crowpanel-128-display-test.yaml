@@ -1,0 +1,70 @@
+esphome:
+  name: crowpanel-128-display-test
+  friendly_name: CrowPanel 1.28 Display Test
+  platformio_options:
+    build_flags: "-DBOARD_HAS_PSRAM"
+    board_build.esp-idf.memory_type: qio_opi
+    board_build.flash_mode: dio
+  on_boot:
+    priority: 800
+    then:
+      - logger.log: "CrowPanel display test boot: enabling backlight"
+      - output.turn_on: screen_backlight_pwm
+      - delay: 200ms
+      - output.turn_off: power_light
+
+esp32:
+  board: esp32-s3-devkitc-1
+  flash_size: 16MB
+  framework:
+    type: esp-idf
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+logger:
+  level: DEBUG
+
+spi:
+  id: spi_bus
+  clk_pin: GPIO10
+  mosi_pin: GPIO11
+
+output:
+  - platform: ledc
+    id: screen_backlight_pwm
+    pin:
+      number: GPIO46
+      ignore_strapping_warning: true
+  - platform: gpio
+    id: power_light
+    pin: GPIO40
+
+light:
+  - platform: monochromatic
+    id: back_light
+    output: screen_backlight_pwm
+    restore_mode: ALWAYS_ON
+
+display:
+  - platform: ili9xxx
+    id: round_display
+    model: GC9A01A
+    cs_pin: GPIO9
+    dc_pin:
+      number: GPIO3
+      ignore_strapping_warning: true
+    reset_pin: GPIO14
+    dimensions:
+      width: 240
+      height: 240
+    invert_colors: true
+    show_test_card: true
+    rotation: 0
+    auto_clear_enabled: false
+
+interval:
+  - interval: 5s
+    then:
+      - logger.log: "CrowPanel display test alive"
