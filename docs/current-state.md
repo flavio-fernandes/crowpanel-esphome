@@ -58,7 +58,8 @@ The known-good throwaway example is:
   GPIO14. The diagnostic runs the GC9A01A SPI bus at 20MHz, keeps backlight at
   60%, keeps GPIO40/GPIO1/GPIO2 enabled, and keeps the WS2812 buffer out of
   PSRAM. It also includes CST816 touchscreen logging over I2C GPIO6/GPIO7 with
-  INT GPIO5 and reset GPIO13. No rotary, LVGL, Wi-Fi, API, OTA, or Home
+  INT GPIO5 and reset GPIO13, rotary encoder logging on GPIO45/GPIO42, and knob
+  button press/release logging on GPIO41. No LVGL, Wi-Fi, API, OTA, or Home
   Assistant integration yet.
 - Serial monitor status: RFC2217 monitor shows the diagnostic firmware cycling
   phases every 5 seconds:
@@ -83,6 +84,12 @@ The known-good throwaway example is:
   GPIO5, reset GPIO13, `mirror_y: true`, `swap_xy: true`). After flashing,
   serial logs captured transformed/raw coordinates during taps and drags while
   the display loop continued returning from LCD updates.
+- 2026-05-20 rotary/button validation: added Elecrow rotary encoder pins
+  GPIO45/GPIO42 with pullups and knob button GPIO41 with pullup/inverted
+  active-low logic. A live RFC2217 monitor captured rotary values moving in
+  both directions, repeated `Knob button pressed`/`Knob button released` logs,
+  touch coordinates, and continued `LCD update returned` logs during the same
+  session.
 - 2026-05-20 workbench outage note: the workbench temporarily became
   unreachable from argon (`Destination Host Unreachable`, incomplete ARP for
   `workbench.lan`). After reboot, SSH/RFC2217 recovered. Current boot health
@@ -90,9 +97,23 @@ The known-good throwaway example is:
   35% used, and `rfc2217-portal.service` active. The previous boot was not
   retained in `journalctl --list-boots`, so no root cause was recoverable from
   logs.
-- Optional next debugging aid: point a camera at the CrowPanel from argon and
-  capture still frames into `artifacts/` so Codex can compare visual output
-  with serial logs.
+- 2026-05-20 serial-close finding: camera-only observation shows the current
+  CrowPanel diagnostic can continue cycling the round LCD and rear RGB LEDs
+  without an active serial monitor. Short RFC2217 monitor sessions appear able
+  to leave the ESP32-S3/CrowPanel app visually stuck or blank with the rear LEDs
+  frozen on their last color when the serial session closes. The workbench
+  host can remain reachable in this state, so this currently looks more like a
+  USB-Serial/JTAG/RFC2217 lifecycle issue than a total workbench failure. Use
+  `tools/espwb-esptool flash-id` to recover the DUT after closing a monitor.
+  A firmware-side test with `logger.deassert_rts_dtr: true` still reproduced
+  the blank/frozen display after serial close, so the current mitigation is
+  workflow/tooling rather than an ESPHome logger setting.
+- 2026-05-20 tooling correction: the project workbench SSH wrappers now ignore
+  global SSH config by default with `SSH_CONFIG=/dev/null`, because a malformed
+  host SSH config can break project-local workbench commands before they connect.
+  If `/host-ssh` is not mounted in the Codex session, set
+  `ESPWB_SSH_KEY=/home/ff/.ssh/id_rsa` locally when running the workbench
+  wrappers. Do not print or commit key contents.
 - Camera debugging is available on argon:
   - USB device: Creative Technology Live! Cam Chat HD
   - Stable V4L path:

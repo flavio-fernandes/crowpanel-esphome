@@ -50,7 +50,16 @@
 - Current CrowPanel diagnostic status: serial logs show phase 0/1/2 cycling
   every 5 seconds, with each LCD update returning; USB camera frames confirm
   visible LCD target/crosshair and rear RGB color cycling. CST816 touch logs
-  transformed and raw tap/drag coordinates.
+  transformed and raw tap/drag coordinates. Rotary encoder GPIO45/GPIO42 logs
+  movement in both directions, and active-low knob button GPIO41 logs
+  press/release events.
+- Known CrowPanel monitor caveat: camera-only observation confirms the visual
+  diagnostic can keep looping without a serial monitor, but closing a short
+  RFC2217 serial monitor session can leave the ESP32-S3 app visually stuck or
+  blank with rear LEDs frozen. The workbench host can remain reachable. Current
+  workaround is to reset through `tools/espwb-esptool flash-id` after monitor
+  close and to keep RFC2217 open/close tests opt-in. Testing
+  `logger.deassert_rts_dtr: true` did not fix this.
 - Camera helpers:
   - `tools/crowpanel-camera-capture`
   - `tools/crowpanel-camera-sequence`
@@ -61,7 +70,6 @@
 ## Remaining CrowPanel project steps
 
 - Bring up hardware features incrementally:
-  - rotary encoder and button logging
   - LVGL
   - Home Assistant/API/OTA only after the local hardware path is stable
 - Record each validated milestone in docs before expanding the YAML.

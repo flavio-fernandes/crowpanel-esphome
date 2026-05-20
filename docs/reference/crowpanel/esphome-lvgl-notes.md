@@ -159,8 +159,14 @@ Do not use RFC2217 for flashing or reset control.
   Elecrow's ESPHome pins and transform: I2C SDA GPIO6, SCL GPIO7, address
   `0x15`, INT GPIO5, reset GPIO13, `mirror_y: true`, and `swap_xy: true`.
   Taps and drags produced transformed/raw coordinate logs while the LCD/RGB
-  loop continued running. Next hardware step is rotary encoder GPIO45/GPIO42
-  and knob press GPIO41.
+  loop continued running.
+- 2026-05-20: Rotary encoder and knob button logging were added to the
+  diagnostic baseline using GPIO45/GPIO42 for A/B and GPIO41 for the active-low
+  press input. The refreshed YAML passed `esphome config`, compiled, flashed to
+  SLOT1 through `tools/espwb-esptool`, and camera capture confirmed the LCD/RGB
+  diagnostic still runs after flashing. Runtime interaction logs captured knob
+  rotation in both directions plus button press/release events while touch and
+  display updates continued working.
 - 2026-05-20: Workbench temporarily became unreachable from argon with
   incomplete ARP and `Destination Host Unreachable`; reboot restored SSH and
   RFC2217. Current boot health was normal and journal history was volatile, so

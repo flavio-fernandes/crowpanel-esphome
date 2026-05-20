@@ -135,6 +135,52 @@ touchscreen:
             format: "Touch transformed x=%d y=%d raw_x=%d raw_y=%d"
             args: [touch.x, touch.y, touch.x_raw, touch.y_raw]
 
+sensor:
+  - platform: rotary_encoder
+    id: knob_encoder
+    name: Rotary Encoder
+    internal: true
+    pin_a:
+      number: GPIO45
+      mode:
+        input: true
+        pullup: true
+      ignore_strapping_warning: true
+    pin_b:
+      number: GPIO42
+      mode:
+        input: true
+        pullup: true
+    resolution: 1
+    min_value: -100000
+    max_value: 100000
+    on_value:
+      then:
+        - logger.log:
+            format: "Rotary encoder value %.0f"
+            args: [x]
+
+binary_sensor:
+  - platform: gpio
+    id: knob_button
+    name: Knob Button
+    internal: true
+    pin:
+      number: GPIO41
+      mode:
+        input: true
+        pullup: true
+      inverted: true
+    filters:
+      - delayed_on: 20ms
+      - delayed_off: 20ms
+    on_press:
+      then:
+        - logger.log: "Knob button pressed"
+    on_release:
+      then:
+        - logger.log: "Knob button released"
+
 interval:
   - interval: 5s
     then:

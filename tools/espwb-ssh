@@ -4,6 +4,7 @@ set -Eeuo pipefail
 WORKBENCH_IP="${WORKBENCH_IP:-192.168.1.235}"
 WORKBENCH_USER="${WORKBENCH_USER:-pi}"
 HOST_SSH_DIR="${HOST_SSH_DIR:-/host-ssh}"
+SSH_CONFIG="${SSH_CONFIG:-/dev/null}"
 
 usage() {
   cat <<USAGE
@@ -94,6 +95,7 @@ remote_shell_cmd="$(quote_cmd "$@")"
 
 ssh \
   -i "$TMP_KEY" \
+  -F "$SSH_CONFIG" \
   -o BatchMode=yes \
   -o ConnectTimeout=10 \
   -o UserKnownHostsFile="$KNOWN_HOSTS" \

@@ -6,6 +6,7 @@ WORKBENCH_USER="${WORKBENCH_USER:-pi}"
 ESPWB_SLOT="${ESPWB_SLOT:-SLOT1}"
 ALLOW_NON_SLOT1="${ALLOW_NON_SLOT1:-0}"
 HOST_SSH_DIR="${HOST_SSH_DIR:-/host-ssh}"
+SSH_CONFIG="${SSH_CONFIG:-/dev/null}"
 
 usage() {
   cat <<USAGE
@@ -121,6 +122,7 @@ ssh-keyscan -T 5 "$WORKBENCH_IP" > "$KNOWN_HOSTS" 2>/dev/null
 SSH_BASE=(
   ssh
   -i "$TMP_KEY"
+  -F "$SSH_CONFIG"
   -o BatchMode=yes
   -o ConnectTimeout=10
   -o UserKnownHostsFile="$KNOWN_HOSTS"
@@ -130,6 +132,7 @@ SSH_BASE=(
 SCP_BASE=(
   scp
   -i "$TMP_KEY"
+  -F "$SSH_CONFIG"
   -o BatchMode=yes
   -o ConnectTimeout=10
   -o UserKnownHostsFile="$KNOWN_HOSTS"

@@ -6,7 +6,7 @@ WORKBENCH_URL="${WORKBENCH_URL:-http://${WORKBENCH_IP}:8080}"
 ESPWB_SLOT="${ESPWB_SLOT:-SLOT1}"
 ALLOW_NON_SLOT1="${ALLOW_NON_SLOT1:-0}"
 ESP_PORT="${ESP_PORT:-rfc2217://${WORKBENCH_IP}:4001?ign_set_control}"
-RUN_RFC2217_TEST="${RUN_RFC2217_TEST:-1}"
+RUN_RFC2217_TEST="${RUN_RFC2217_TEST:-0}"
 
 if [[ "$ESPWB_SLOT" != "SLOT1" && "$ALLOW_NON_SLOT1" != "1" ]]; then
   echo "Refusing to validate ESPWB_SLOT=$ESPWB_SLOT; only SLOT1 is allowed by default." >&2
@@ -82,6 +82,7 @@ else
 fi
 
 if [[ "$RUN_RFC2217_TEST" == "1" ]]; then
+  printf '[INFO] RFC2217 open/close test may perturb ESP32-S3 USB-Serial/JTAG devices.\n'
   if python3 - "$ESP_PORT" <<'PY' >/tmp/rfc2217-open-close.txt 2>&1
 import sys
 import serial
@@ -99,6 +100,8 @@ PY
     fail "RFC2217 serial open/close failed"
     cat /tmp/rfc2217-open-close.txt || true
   fi
+else
+  printf '[SKIP] RFC2217 open/close test skipped; set RUN_RFC2217_TEST=1 to run it intentionally.\n'
 fi
 
 printf '\nSummary:\n'
