@@ -35,6 +35,11 @@
 - Added and flashed CST816 touchscreen logging on the stable visual diagnostic.
   Serial logs captured transformed/raw coordinates during taps and drags while
   the display/RGB loop continued running.
+- Added, validated, compiled, flashed, and camera-verified the first tiny LVGL
+  diagnostic example. The round LCD shows one LVGL page with a title, arc,
+  status label, and button, using the validated display/touch/rotary/button
+  baseline. Hands-on post-flash LVGL input behavior still needs runtime
+  interaction testing.
 
 ## Current repo state
 
@@ -46,7 +51,8 @@
 - Current CrowPanel baseline example: `examples/crowpanel-128-minimal/crowpanel-128-minimal.yaml`
 - Current CrowPanel backlight example: `examples/crowpanel-128-backlight/crowpanel-128-backlight.yaml`
 - Current CrowPanel display test example: `examples/crowpanel-128-display-test/crowpanel-128-display-test.yaml`
-- Current CrowPanel flashed example: `examples/crowpanel-128-io-diagnostic/crowpanel-128-io-diagnostic.yaml`
+- Current CrowPanel IO diagnostic example: `examples/crowpanel-128-io-diagnostic/crowpanel-128-io-diagnostic.yaml`
+- Current CrowPanel flashed example: `examples/crowpanel-128-lvgl-diagnostic/crowpanel-128-lvgl-diagnostic.yaml`
 - Current CrowPanel diagnostic status: serial logs show phase 0/1/2 cycling
   every 5 seconds, with each LCD update returning; USB camera frames confirm
   visible LCD target/crosshair and rear RGB color cycling. CST816 touch logs
@@ -65,12 +71,14 @@
   - `tools/crowpanel-camera-sequence`
 - Latest validation capture directory:
   `artifacts/crowpanel-camera-20260520T165832Z/`
+- Latest LVGL validation capture:
+  `artifacts/crowpanel-camera-20260520T204817Z.jpg`
 - Known-good workflow: ESPHome YAML -> `esphome config` -> `esphome compile` -> `tools/espwb-esptool write-flash` -> real GPIO13 blink.
 
 ## Remaining CrowPanel project steps
 
 - Bring up hardware features incrementally:
-  - LVGL
+  - Hands-on LVGL touch, rotary, and knob-button interaction validation
   - Home Assistant/API/OTA only after the local hardware path is stable
 - Record each validated milestone in docs before expanding the YAML.
 

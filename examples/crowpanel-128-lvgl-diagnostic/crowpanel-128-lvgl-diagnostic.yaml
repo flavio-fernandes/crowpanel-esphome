@@ -1,0 +1,246 @@
+esphome:
+  name: crowpanel-128-lvgl-diagnostic
+  friendly_name: CrowPanel 1.28 LVGL Diagnostic
+  platformio_options:
+    build_flags: "-DBOARD_HAS_PSRAM"
+    board_build.esp-idf.memory_type: qio_opi
+    board_build.flash_mode: dio
+  on_boot:
+    priority: -100
+    then:
+      - logger.log: "CrowPanel LVGL diagnostic boot"
+      - output.set_level:
+          id: screen_backlight_pwm
+          level: 60%
+      - output.turn_on: power_light
+      - output.turn_on: out1_enable
+      - output.turn_on: out2_enable
+      - light.turn_on:
+          id: ambient_leds
+          red: 0%
+          green: 0%
+          blue: 100%
+          brightness: 25%
+          transition_length: 0s
+
+esp32:
+  board: esp32-s3-devkitc-1
+  flash_size: 16MB
+  framework:
+    type: esp-idf
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+logger:
+  level: DEBUG
+
+spi:
+  id: spi_bus
+  clk_pin: GPIO10
+  mosi_pin: GPIO11
+
+i2c:
+  id: i2c_touch
+  sda: GPIO6
+  scl: GPIO7
+  scan: true
+  frequency: 400kHz
+  setup_priority: 400
+
+output:
+  - platform: ledc
+    id: screen_backlight_pwm
+    frequency: 5000Hz
+    pin:
+      number: GPIO46
+      ignore_strapping_warning: true
+  - platform: gpio
+    id: power_light
+    pin: GPIO40
+  - platform: gpio
+    id: out1_enable
+    pin: GPIO1
+  - platform: gpio
+    id: out2_enable
+    pin: GPIO2
+
+light:
+  - platform: esp32_rmt_led_strip
+    id: ambient_leds
+    name: Ambient LEDs
+    internal: true
+    pin: GPIO48
+    num_leds: 5
+    chipset: WS2812
+    rgb_order: GRB
+    restore_mode: ALWAYS_OFF
+    default_transition_length: 0s
+    use_psram: false
+
+touchscreen:
+  - platform: cst816
+    id: round_touch
+    i2c_id: i2c_touch
+    address: 0x15
+    interrupt_pin: GPIO5
+    reset_pin: GPIO13
+    transform:
+      mirror_x: false
+      mirror_y: true
+      swap_xy: true
+    on_touch:
+      then:
+        - logger.log:
+            format: "Touch transformed x=%d y=%d raw_x=%d raw_y=%d"
+            args: [touch.x, touch.y, touch.x_raw, touch.y_raw]
+        - lvgl.label.update:
+            id: input_status_label
+            text:
+              format: "Touch %d,%d"
+              args: [touch.x, touch.y]
+
+display:
+  - platform: ili9xxx
+    id: round_display
+    model: GC9A01A
+    cs_pin: GPIO9
+    dc_pin:
+      number: GPIO3
+      ignore_strapping_warning: true
+    reset_pin: GPIO14
+    dimensions:
+      width: 240
+      height: 240
+    invert_colors: true
+    data_rate: 20MHz
+    update_interval: never
+    auto_clear_enabled: false
+
+lvgl:
+  displays:
+    - round_display
+  touchscreens:
+    - round_touch
+  encoders:
+    - sensor: knob_encoder
+      enter_button: knob_button
+      initial_focus: touch_button
+  bg_color: 0x101820
+  pages:
+    - id: main_page
+      bg_color: 0x101820
+      pad_all: 0
+      scrollable: false
+      widgets:
+        - label:
+            text: "LVGL"
+            align: top_mid
+            y: 28
+            text_color: 0xFFFFFF
+            text_font: montserrat_28
+        - arc:
+            id: encoder_arc
+            align: center
+            width: 150
+            height: 150
+            min_value: 0
+            max_value: 100
+            value: 50
+            adjustable: true
+            indicator:
+              arc_color: 0x00C2FF
+            knob:
+              bg_color: 0xF6D365
+        - label:
+            id: input_status_label
+            text: "Touch or rotate"
+            align: center
+            y: 8
+            text_color: 0xFFFFFF
+            text_font: montserrat_16
+        - button:
+            id: touch_button
+            align: bottom_mid
+            y: -22
+            width: 104
+            height: 38
+            radius: 6
+            bg_color: 0xF6D365
+            on_click:
+              then:
+                - logger.log: "LVGL touch button clicked"
+                - lvgl.label.update:
+                    id: input_status_label
+                    text: "Button clicked"
+                - light.turn_on:
+                    id: ambient_leds
+                    red: 100%
+                    green: 70%
+                    blue: 0%
+                    brightness: 35%
+                    transition_length: 0s
+            widgets:
+              - label:
+                  text: "Press"
+                  align: center
+                  text_color: 0x101820
+                  text_font: montserrat_18
+
+sensor:
+  - platform: rotary_encoder
+    id: knob_encoder
+    name: Rotary Encoder
+    internal: true
+    pin_a:
+      number: GPIO45
+      mode:
+        input: true
+        pullup: true
+      ignore_strapping_warning: true
+    pin_b:
+      number: GPIO42
+      mode:
+        input: true
+        pullup: true
+    resolution: 1
+    min_value: 0
+    max_value: 100
+    on_value:
+      then:
+        - logger.log:
+            format: "Rotary encoder value %.0f"
+            args: [x]
+        - lvgl.arc.update:
+            id: encoder_arc
+            value: !lambda "return x;"
+        - lvgl.label.update:
+            id: input_status_label
+            text:
+              format: "Rotary %.0f"
+              args: [x]
+
+binary_sensor:
+  - platform: gpio
+    id: knob_button
+    name: Knob Button
+    internal: true
+    pin:
+      number: GPIO41
+      mode:
+        input: true
+        pullup: true
+      inverted: true
+    filters:
+      - delayed_on: 20ms
+      - delayed_off: 20ms
+    on_press:
+      then:
+        - logger.log: "Knob button pressed"
+        - lvgl.label.update:
+            id: input_status_label
+            text: "Knob pressed"
+    on_release:
+      then:
+        - logger.log: "Knob button released"

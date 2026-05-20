@@ -49,20 +49,18 @@ The known-good throwaway example is:
 - Backup size: 16,777,216 bytes
 - Backup SHA-256: `e11671b2f0d95d75cb4e992138795cae351c29363ec51bae2d73e3e67a7c3bbc`
 - Current flashed ESPHome example:
+  `examples/crowpanel-128-lvgl-diagnostic/crowpanel-128-lvgl-diagnostic.yaml`
+- Previous known-good IO diagnostic:
   `examples/crowpanel-128-io-diagnostic/crowpanel-128-io-diagnostic.yaml`
 - Current firmware scope: minimal ESP32-S3 ESPHome logger with 16MB flash,
-  octal 80MHz PSRAM configuration, GPIO46 LEDC screen backlight diagnostics,
-  GPIO40 diagnostics, GPIO1/GPIO2 output enables, GPIO48 WS2812 ambient LED
-  diagnostics, and an Elecrow-style ESPHome `ili9xxx` GC9A01A display fill
-  diagnostic using SCLK GPIO10, MOSI GPIO11, CS GPIO9, DC GPIO3, and reset
-  GPIO14. The diagnostic runs the GC9A01A SPI bus at 20MHz, keeps backlight at
-  60%, keeps GPIO40/GPIO1/GPIO2 enabled, and keeps the WS2812 buffer out of
-  PSRAM. It also includes CST816 touchscreen logging over I2C GPIO6/GPIO7 with
-  INT GPIO5 and reset GPIO13, rotary encoder logging on GPIO45/GPIO42, and knob
-  button press/release logging on GPIO41. No LVGL, Wi-Fi, API, OTA, or Home
-  Assistant integration yet.
-- Serial monitor status: RFC2217 monitor shows the diagnostic firmware cycling
-  phases every 5 seconds:
+  octal 80MHz PSRAM configuration, GPIO46 LEDC screen backlight at 60%,
+  GPIO40/GPIO1/GPIO2 output enables, GPIO48 WS2812 ambient LEDs, CST816 touch,
+  rotary encoder, knob button, and one ESPHome LVGL page on the validated
+  `ili9xxx` GC9A01A display path using SCLK GPIO10, MOSI GPIO11, CS GPIO9, DC
+  GPIO3, and reset GPIO14. The LVGL page has a title, arc, status label, and
+  button. It does not include Wi-Fi, API, OTA, or Home Assistant integration.
+- Previous IO diagnostic serial monitor status: RFC2217 monitor showed the
+  diagnostic firmware cycling phases every 5 seconds:
   - phase 0: LCD red target/crosshair, ambient red
   - phase 1: LCD green target/crosshair, ambient green
   - phase 2: LCD blue target/crosshair, ambient blue
@@ -90,6 +88,20 @@ The known-good throwaway example is:
   both directions, repeated `Knob button pressed`/`Knob button released` logs,
   touch coordinates, and continued `LCD update returned` logs during the same
   session.
+- 2026-05-20 first LVGL diagnostic: added
+  `examples/crowpanel-128-lvgl-diagnostic/crowpanel-128-lvgl-diagnostic.yaml`
+  as a small sibling of the validated IO diagnostic. It keeps the validated
+  ESP32-S3, PSRAM, display, backlight, RGB LED, CST816 touch, rotary encoder,
+  and knob button pin baseline, removes the display lambda, sets
+  `auto_clear_enabled: false`, and lets LVGL render one page with a title,
+  arc, status label, and button. `esphome config` passed, `esphome compile`
+  succeeded, SLOT1 `flash-id` confirmed the expected ESP32-S3 QFN56 rev v0.2
+  with 8MB PSRAM, 16MB flash, and MAC `3c:0f:02:db:e9:14`, and the firmware was
+  flashed through `tools/espwb-esptool write-flash`. Camera capture
+  `artifacts/crowpanel-camera-20260520T204817Z.jpg` visually confirmed the LVGL
+  page on the round LCD and blue rear LEDs. RFC2217 was not opened during this
+  validation, so post-flash touch, rotary, and knob-button LVGL interactions
+  still need a hands-on runtime check.
 - 2026-05-20 workbench outage note: the workbench temporarily became
   unreachable from argon (`Destination Host Unreachable`, incomplete ARP for
   `workbench.lan`). After reboot, SSH/RFC2217 recovered. Current boot health
