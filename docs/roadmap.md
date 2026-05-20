@@ -40,6 +40,10 @@
   status label, and button, using the validated display/touch/rotary/button
   baseline. Hands-on post-flash LVGL input behavior still needs runtime
   interaction testing.
+- Validated LVGL diagnostic runtime input: touch logs, rotary movement in both
+  directions, knob button press/release logs, and visible rotary-to-LVGL status
+  feedback were captured. The RFC2217-close blank/frozen behavior reproduced on
+  the LVGL diagnostic, and `tools/espwb-esptool flash-id` recovered the display.
 
 ## Current repo state
 
@@ -59,6 +63,10 @@
   transformed and raw tap/drag coordinates. Rotary encoder GPIO45/GPIO42 logs
   movement in both directions, and active-low knob button GPIO41 logs
   press/release events.
+- Current CrowPanel LVGL status: the flashed LVGL diagnostic renders on the
+  round display, accepts CST816 touch, logs rotary movement in both directions,
+  logs knob button press/release, and updates the LVGL status label from rotary
+  input.
 - Known CrowPanel monitor caveat: camera-only observation confirms the visual
   diagnostic can keep looping without a serial monitor, but closing a short
   RFC2217 serial monitor session can leave the ESP32-S3 app visually stuck or
@@ -73,14 +81,22 @@
   `artifacts/crowpanel-camera-20260520T165832Z/`
 - Latest LVGL validation capture:
   `artifacts/crowpanel-camera-20260520T204817Z.jpg`
+- Latest LVGL input/recovery captures:
+  `artifacts/crowpanel-camera-20260520T205835Z.jpg`,
+  `artifacts/crowpanel-camera-20260520T205941Z.jpg`, and
+  `artifacts/crowpanel-camera-20260520T210004Z.jpg`
 - Known-good workflow: ESPHome YAML -> `esphome config` -> `esphome compile` -> `tools/espwb-esptool write-flash` -> real GPIO13 blink.
 
 ## Remaining CrowPanel project steps
 
 - Bring up hardware features incrementally:
-  - Hands-on LVGL touch, rotary, and knob-button interaction validation
   - Home Assistant/API/OTA only after the local hardware path is stable
 - Record each validated milestone in docs before expanding the YAML.
+
+At this point, the local compile, flash, display, touch, rotary, button, LVGL,
+camera verification, and recovery workflow has been proven end to end. It now
+makes sense to create the future reusable platform repo before adding networked
+Home Assistant/API/OTA complexity to this CrowPanel firmware.
 
 ## Future reusable platform repo plan
 

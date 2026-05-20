@@ -102,6 +102,18 @@ The known-good throwaway example is:
   page on the round LCD and blue rear LEDs. RFC2217 was not opened during this
   validation, so post-flash touch, rotary, and knob-button LVGL interactions
   still need a hands-on runtime check.
+- 2026-05-20 LVGL input validation: a short 45 second RFC2217 monitor session
+  captured touch events updating transformed/raw coordinates, rotary values
+  moving in both directions (`94` up through `96`, then down through `64`, then
+  back to `66`), and knob button press/release logs. A pre-monitor camera frame
+  `artifacts/crowpanel-camera-20260520T205835Z.jpg` showed the LVGL status
+  label already updated to `Rotary 58`, confirming rotary-to-LVGL display
+  feedback. After the monitor closed, camera capture
+  `artifacts/crowpanel-camera-20260520T205941Z.jpg` showed the known
+  RFC2217-close blank/frozen display behavior on the LVGL diagnostic as well.
+  Running `tools/espwb-esptool flash-id` recovered/reset the DUT, and camera
+  capture `artifacts/crowpanel-camera-20260520T210004Z.jpg` confirmed the LVGL
+  page returned.
 - 2026-05-20 workbench outage note: the workbench temporarily became
   unreachable from argon (`Destination Host Unreachable`, incomplete ARP for
   `workbench.lan`). After reboot, SSH/RFC2217 recovered. Current boot health
@@ -109,11 +121,11 @@ The known-good throwaway example is:
   35% used, and `rfc2217-portal.service` active. The previous boot was not
   retained in `journalctl --list-boots`, so no root cause was recoverable from
   logs.
-- 2026-05-20 serial-close finding: camera-only observation shows the current
-  CrowPanel diagnostic can continue cycling the round LCD and rear RGB LEDs
-  without an active serial monitor. Short RFC2217 monitor sessions appear able
-  to leave the ESP32-S3/CrowPanel app visually stuck or blank with the rear LEDs
-  frozen on their last color when the serial session closes. The workbench
+- 2026-05-20 serial-close finding: camera-only observation shows the visual
+  diagnostic can keep looping without an active serial monitor. Short RFC2217
+  monitor sessions can leave the ESP32-S3/CrowPanel app visually stuck or blank
+  with the rear LEDs frozen when the serial session closes. This has now been
+  reproduced with both the IO diagnostic and the LVGL diagnostic. The workbench
   host can remain reachable in this state, so this currently looks more like a
   USB-Serial/JTAG/RFC2217 lifecycle issue than a total workbench failure. Use
   `tools/espwb-esptool flash-id` to recover the DUT after closing a monitor.

@@ -8,9 +8,6 @@ Read AGENTS.md, README.md, docs/current-state.md, docs/roadmap.md, docs/esphome-
 We are working in /home/ff/src/crowpanel-esphome on the Elecrow CrowPanel 1.28 inch HMI ESP32 rotary display in workbench SLOT1.
 
 Current pushed commit on main should be:
-908a33e Validate CrowPanel IO diagnostics
-
-Latest local commit should be titled:
 Add CrowPanel LVGL diagnostic
 
 Important safety/workflow constraints:
@@ -38,7 +35,8 @@ Validated hardware baseline:
 - First LVGL diagnostic exists at examples/crowpanel-128-lvgl-diagnostic/crowpanel-128-lvgl-diagnostic.yaml.
 - The LVGL diagnostic validates, compiles, and has been flashed to SLOT1 through tools/espwb-esptool.
 - Camera capture artifacts/crowpanel-camera-20260520T204817Z.jpg confirmed the LVGL page on the round LCD and blue rear LEDs.
-- RFC2217 was not opened during the LVGL flash/camera validation, so LVGL touch/rotary/knob interactions still need a hands-on runtime check.
+- LVGL runtime input validation captured touch logs, rotary movement in both directions, knob button press/release logs, and visible rotary-to-LVGL status label feedback.
+- The RFC2217-close blank/frozen behavior reproduced on the LVGL diagnostic, and tools/espwb-esptool flash-id recovered it.
 - Camera helpers exist and work:
   - tools/crowpanel-camera-capture
   - tools/crowpanel-camera-sequence
@@ -56,16 +54,13 @@ Known caveat:
 Start by summarizing the state briefly.
 
 Then take the next step:
-Validate LVGL touch, rotary, and knob-button interactions on the flashed LVGL diagnostic.
+Create the initial reusable boilerplate repo plan for future projects, likely named esp-codex-platform.
 
 Constraints for the next step:
-- Keep it small and incremental.
-- Do not add Wi-Fi, Home Assistant API, OTA, or a complex UI yet.
-- Do not expand the UI unless validation shows a tiny fix is needed.
-- Use camera verification where possible.
-- If serial logs are needed, open RFC2217 only for the shortest practical window, ask the user to tap/rotate/press during that window, and reset/recover through tools/espwb-esptool flash-id after closing the monitor.
-- Capture whether the LVGL status label changes for touch, rotary, and knob press/release.
-- Be careful with RFC2217 monitor close; reset the DUT afterward if you open serial.
-- Compile and flash only if a YAML fix is required and validates first.
-- Document the runtime result before committing.
+- Do not modify the CrowPanel firmware while planning/extracting boilerplate.
+- Do not push or create a GitHub repo without explicit approval.
+- Extract only reusable, boring project infrastructure and docs patterns.
+- Do not include CrowPanel-specific YAML, hardware references, artifacts, generated firmware, secrets, or workbench host private details.
+- Candidate reusable pieces: devcontainer foundation, AGENTS.md template, README template, workbench wrapper pattern, validate-workbench pattern, GitHub setup notes, docs/current-state and roadmap templates, ignored artifact/build-output patterns, and a tiny generic ESPHome blink example.
+- First produce a concise extraction plan and proposed repo/file layout before creating files.
 ```
