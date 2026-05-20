@@ -3,7 +3,7 @@
 Paste this into a fresh Codex thread:
 
 ```text
-Read AGENTS.md, README.md, docs/current-state.md, docs/roadmap.md, docs/esphome-workbench-cheatsheet.md, docs/github-setup.md, docs/project-sources.md, docs/reference/crowpanel/hardware-facts.md, and docs/reference/crowpanel/esphome-lvgl-notes.md.
+Read AGENTS.md, README.md, docs/current-state.md, docs/roadmap.md, docs/esphome-workbench-cheatsheet.md, docs/github-setup.md, docs/project-sources.md, docs/reference/crowpanel/hardware-facts.md, docs/reference/crowpanel/esphome-lvgl-notes.md, and docs/esp-codex-platform-extraction-plan.md.
 
 We are working in /home/ff/src/crowpanel-esphome on the Elecrow CrowPanel 1.28 inch HMI ESP32 rotary display in workbench SLOT1.
 
@@ -54,7 +54,7 @@ Known caveat:
 Start by summarizing the state briefly.
 
 Then take the next step:
-Create the initial reusable boilerplate repo plan for future projects, likely named esp-codex-platform.
+Create the initial local reusable boilerplate repo for future projects, likely named esp-codex-platform, from docs/esp-codex-platform-extraction-plan.md.
 
 Constraints for the next step:
 - Do not modify the CrowPanel firmware while planning/extracting boilerplate.
@@ -62,5 +62,5 @@ Constraints for the next step:
 - Extract only reusable, boring project infrastructure and docs patterns.
 - Do not include CrowPanel-specific YAML, hardware references, artifacts, generated firmware, secrets, or workbench host private details.
 - Candidate reusable pieces: devcontainer foundation, AGENTS.md template, README template, workbench wrapper pattern, validate-workbench pattern, GitHub setup notes, docs/current-state and roadmap templates, ignored artifact/build-output patterns, and a tiny generic ESPHome blink example.
-- First produce a concise extraction plan and proposed repo/file layout before creating files.
+- Create the repo locally only; ask before pushing.
 ```

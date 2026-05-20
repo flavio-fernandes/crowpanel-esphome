@@ -116,9 +116,14 @@ It should capture the reusable pieces that have emerged from this CrowPanel work
 - known-good ESPHome blink example
 - troubleshooting docs
 
-Do not extract `esp-codex-platform` yet.
+The extraction plan now lives in:
 
-Reason: first prove the CrowPanel compile, flash, display, touch, rotary, and LVGL workflow end to end. After those pieces are validated in this real project, extract only the reusable, boring parts into the platform repo.
+`docs/esp-codex-platform-extraction-plan.md`
+
+The CrowPanel compile, flash, display, touch, rotary, button, LVGL, camera, and
+recovery workflow is now validated end to end, so `esp-codex-platform` can be
+created next. Keep the first pass generic: no CrowPanel YAML, hardware facts,
+artifacts, generated firmware, secrets, or Home Assistant-specific device UI.
 
 ## Things not to forget
 
@@ -135,14 +140,14 @@ Reason: first prove the CrowPanel compile, flash, display, touch, rotary, and LV
 ## Recommended next Codex thread prompt
 
 ```text
-Read AGENTS.md, README.md, docs/current-state.md, docs/roadmap.md, docs/esphome-workbench-cheatsheet.md, docs/github-setup.md, and docs/project-sources.md.
+Read AGENTS.md, README.md, docs/current-state.md, docs/roadmap.md, docs/esphome-workbench-cheatsheet.md, docs/github-setup.md, docs/project-sources.md, and docs/esp-codex-platform-extraction-plan.md.
 
 Do not modify files yet.
 
 Summarize the project state.
 
-Then propose Step 10E0 only: capture Elecrow CrowPanel references locally.
+Then create the initial local `esp-codex-platform` starter repo from the extraction plan, but do not push or create GitHub without explicit approval.
 
-Do not create CrowPanel YAML yet.
+Do not modify CrowPanel firmware.
 Do not flash anything.
 ```
