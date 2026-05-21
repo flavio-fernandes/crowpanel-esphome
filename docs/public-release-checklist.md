@@ -7,6 +7,7 @@ git status --short
 git status --ignored --short
 git ls-files
 git grep -n -E '<private-lan-regex>|<secret-regex>'
+rg -n '<private-lan-regex>|<secret-regex>'
 ```
 
 Confirm that tracked files do not include:

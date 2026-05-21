@@ -58,7 +58,7 @@ The known-good throwaway example is:
   octal 80MHz PSRAM configuration, GPIO46 LEDC screen backlight at 60%,
   GPIO40/GPIO1/GPIO2 output enables, GPIO48 WS2812 ambient LEDs, CST816 touch,
   rotary encoder, knob button, and one ESPHome LVGL page on the validated
-  `ili9xxx` GC9A01A display path using SCLK GPIO10, MOSI GPIO11, CS GPIO9, DC
+  `mipi_spi` GC9A01A display path using SCLK GPIO10, MOSI GPIO11, CS GPIO9, DC
   GPIO3, and reset GPIO14. The LVGL page has a title, arc, status label, and
   button. It does not include Wi-Fi, API, OTA, or Home Assistant integration.
 - Previous IO diagnostic serial monitor status: RFC2217 monitor showed the
@@ -116,6 +116,11 @@ The known-good throwaway example is:
   Running `tools/espwb-esptool flash-id` recovered/reset the DUT, and camera
   capture `artifacts/crowpanel-camera-20260520T210004Z.jpg` confirmed the LVGL
   page returned.
+- 2026-05-21 display-driver cleanup: the LVGL diagnostic was migrated from the
+  deprecated `ili9xxx` display platform to ESPHome `mipi_spi` GC9A01A at 20MHz,
+  compiled, flashed to SLOT1, and camera-verified on the physical round LCD.
+  The remaining CrowPanel display diagnostics now use the same `mipi_spi`
+  platform so local examples avoid the deprecated driver path.
 - 2026-05-20 workbench outage note: the workbench temporarily became
   unreachable from the Linux host (`Destination Host Unreachable`, incomplete
   ARP for the local workbench host). After reboot, SSH/RFC2217 recovered. Current boot health

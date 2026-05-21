@@ -22,6 +22,15 @@ devcontainer exec --workspace-folder . esphome version
 devcontainer exec --workspace-folder . tools/validate-workbench.sh
 ```
 
+After changing `.devcontainer/Dockerfile` or `.devcontainer/devcontainer.json`,
+rebuild and replace the running container:
+
+```bash
+devcontainer up --workspace-folder . --remove-existing-container
+devcontainer exec --workspace-folder . rg --version
+devcontainer exec --workspace-folder . tools/validate-workbench.sh
+```
+
 ## ESPHome validation commands
 
 ```bash

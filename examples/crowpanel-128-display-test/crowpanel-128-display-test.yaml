@@ -6,12 +6,14 @@ esphome:
     board_build.esp-idf.memory_type: qio_opi
     board_build.flash_mode: dio
   on_boot:
-    priority: 800
+    priority: -100
     then:
       - logger.log: "CrowPanel display test boot: enabling backlight"
-      - output.turn_on: screen_backlight_pwm
+      - output.set_level:
+          id: screen_backlight_pwm
+          level: 60%
       - delay: 200ms
-      - output.turn_off: power_light
+      - output.turn_on: power_light
 
 esp32:
   board: esp32-s3-devkitc-1
@@ -48,7 +50,7 @@ light:
     restore_mode: ALWAYS_ON
 
 display:
-  - platform: ili9xxx
+  - platform: mipi_spi
     id: round_display
     model: GC9A01A
     cs_pin: GPIO9
@@ -62,6 +64,7 @@ display:
     invert_colors: true
     show_test_card: true
     rotation: 0
+    data_rate: 20MHz
     auto_clear_enabled: false
 
 interval:

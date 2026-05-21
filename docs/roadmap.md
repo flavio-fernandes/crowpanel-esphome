@@ -44,6 +44,12 @@
   directions, knob button press/release logs, and visible rotary-to-LVGL status
   feedback were captured. The RFC2217-close blank/frozen behavior reproduced on
   the LVGL diagnostic, and `tools/espwb-esptool flash-id` recovered the display.
+- Migrated the CrowPanel display examples from deprecated `ili9xxx` to
+  ESPHome `mipi_spi` after the LVGL diagnostic compiled, flashed, and rendered
+  correctly on the physical round LCD.
+- Aligned the original CrowPanel display-test boot sequence with the stable
+  diagnostics by using post-initialization `on_boot` priority `-100` and a
+  fixed 60% GPIO46 backlight.
 
 ## Current repo state
 
@@ -60,10 +66,10 @@
 - Current CrowPanel flashed example: `examples/crowpanel-128-lvgl-diagnostic/crowpanel-128-lvgl-diagnostic.yaml`
 - Current CrowPanel diagnostic status: serial logs show phase 0/1/2 cycling
   every 5 seconds, with each LCD update returning; USB camera frames confirm
-  visible LCD target/crosshair and rear RGB color cycling. CST816 touch logs
-  transformed and raw tap/drag coordinates. Rotary encoder GPIO45/GPIO42 logs
-  movement in both directions, and active-low knob button GPIO41 logs
-  press/release events.
+  visible LCD target/crosshair and rear RGB color cycling. The display path is
+  now `mipi_spi` GC9A01A at 20MHz. CST816 touch logs transformed and raw
+  tap/drag coordinates. Rotary encoder GPIO45/GPIO42 logs movement in both
+  directions, and active-low knob button GPIO41 logs press/release events.
 - Current CrowPanel LVGL status: the flashed LVGL diagnostic renders on the
   round display, accepts CST816 touch, logs rotary movement in both directions,
   logs knob button press/release, and updates the LVGL status label from rotary
@@ -139,6 +145,9 @@ GitHub repo and pushed.
 - Do not use RFC2217 reset control for flashing.
 - Do not create a large CrowPanel YAML in one jump.
 - Keep secrets, `.env` files, private keys, firmware binaries, `artifacts/`, and `.esphome/` out of git.
+- Rebuild the devcontainer with
+  `devcontainer up --workspace-folder . --remove-existing-container` after
+  editing `.devcontainer/Dockerfile` or `.devcontainer/devcontainer.json`.
 - Verify `gh auth status` in Codex's own command environment before GitHub operations.
 - Do not push to GitHub unless explicitly approved.
 - Do not use `sudo` unless explicitly approved.
