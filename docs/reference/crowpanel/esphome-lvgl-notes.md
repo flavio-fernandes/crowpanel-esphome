@@ -10,7 +10,7 @@ the first CrowPanel ESPHome YAML.
 | CrowPanel feature | Likely ESPHome component path | Notes |
 | --- | --- | --- |
 | ESP32-S3R8 MCU | `esp32`, ESP-IDF framework likely preferred | Need select a board id and PSRAM/flash settings deliberately. |
-| GC9A01A 240 x 240 SPI display | `display: mipi_spi` | Elecrow's ESPHome lessons and bruxy70 `esphome-lvgl` guidance originally used `ili9xxx` for GC9A01A round displays, but ESPHome deprecated `ili9xxx`. The current validated local path is `mipi_spi` GC9A01A at 20MHz. |
+| GC9A01A 240 x 240 SPI display | `display: mipi_spi` for LVGL; `display: ili9xxx` for native diagnostics | Elecrow's ESPHome lessons and bruxy70 `esphome-lvgl` guidance originally used `ili9xxx` for GC9A01A round displays, but ESPHome deprecated `ili9xxx`. The current validated LVGL path is `mipi_spi` GC9A01A at 20MHz. Native display-test/diagnostic examples still use the physically proven `ili9xxx` path because the native `mipi_spi` display-test stayed blank. |
 | CST816D capacitive touch | `touchscreen: cst816` | ESPHome `cst816` requires I2C and supports the CST816 family. |
 | Rotary knob rotation | `sensor: rotary_encoder` | Use GPIO45/GPIO42 from Elecrow. Direction can be reversed by swapping A/B in config. |
 | Knob press | `binary_sensor: gpio` | GPIO41. Useful as an LVGL select/enter input later. |
@@ -174,11 +174,13 @@ Do not use RFC2217 for flashing or reset control.
   deprecation warning, flashing to SLOT1 verified successfully, and camera
   capture `artifacts/crowpanel-camera-20260521T202218Z.jpg` showed the LVGL UI
   rendered on the round LCD.
-- 2026-05-21: The older display-test and IO diagnostic examples were also
-  migrated to `mipi_spi` so the example set no longer uses the deprecated
-  display platform. Both YAML files passed `esphome config` and `esphome
-  compile`. The display-test boot sequence was also aligned with the stable
-  post-initialization GPIO46 backlight pattern.
+- 2026-05-21: The older display-test and IO diagnostic examples were briefly
+  migrated to `mipi_spi` and both YAML files passed `esphome config` and
+  `esphome compile`, but flashing the native display-test left the physical LCD
+  blank. Those native diagnostics were restored to `ili9xxx`; the LVGL
+  diagnostic remains on the physically verified `mipi_spi` path. The
+  display-test boot sequence stayed aligned with the stable post-initialization
+  GPIO46 backlight pattern.
 - 2026-05-20: Workbench temporarily became unreachable from the Linux host with
   incomplete ARP and `Destination Host Unreachable`; reboot restored SSH and
   RFC2217. Current boot health was normal and journal history was volatile, so

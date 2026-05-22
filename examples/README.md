@@ -21,3 +21,11 @@ devcontainer exec --workspace-folder . tools/espwb-esptool write-flash 0x0 examp
 
 Flashing must go through `tools/espwb-esptool` and the default workbench slot is
 `SLOT1`.
+
+Do not flash a `firmware.factory.bin` from `.esphome/` unless you just compiled
+the matching YAML successfully. Build outputs are ignored generated state and
+can be stale after display-driver experiments.
+
+The `crowpanel-128-display-test` example is a focused native display smoke test.
+It must enable GPIO40 plus the GPIO1/GPIO2 output rails before drawing; use the
+LVGL diagnostic for the documented end-to-end CrowPanel flash path.

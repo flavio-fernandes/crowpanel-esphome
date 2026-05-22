@@ -92,11 +92,11 @@ Source: Espressif ESP32-S3 hardware design guidelines.
 
 ## Resolved bring-up questions
 
-- Current display path: ESPHome `mipi_spi` with `model: GC9A01A`, GPIO9 CS,
-  GPIO3 DC, GPIO14 reset, `invert_colors: true`, 240 x 240 dimensions, and
-  20MHz SPI data rate. Earlier bring-up used `ili9xxx` because the first
-  `mipi_spi` attempt stayed blank, but the 2026-05-21 migration was compiled,
-  flashed, and camera-verified on the LVGL diagnostic.
+- Current LVGL display path: ESPHome `mipi_spi` with `model: GC9A01A`, GPIO9
+  CS, GPIO3 DC, GPIO14 reset, `invert_colors: true`, 240 x 240 dimensions, and
+  20MHz SPI data rate. The native display-test/IO diagnostic path remains
+  `ili9xxx` because native `mipi_spi` builds compile but have stayed blank on
+  the physical LCD.
 - CST816D touch works in ESPHome with normal probing on I2C address `0x15`,
   SDA GPIO6, SCL GPIO7, INT GPIO5, reset GPIO13, `mirror_y: true`, and
   `swap_xy: true`.

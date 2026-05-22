@@ -89,7 +89,7 @@ light:
     use_psram: false
 
 display:
-  - platform: mipi_spi
+  - platform: ili9xxx
     id: round_display
     model: GC9A01A
     cs_pin: GPIO9

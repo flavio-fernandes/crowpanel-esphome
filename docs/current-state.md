@@ -119,8 +119,31 @@ The known-good throwaway example is:
 - 2026-05-21 display-driver cleanup: the LVGL diagnostic was migrated from the
   deprecated `ili9xxx` display platform to ESPHome `mipi_spi` GC9A01A at 20MHz,
   compiled, flashed to SLOT1, and camera-verified on the physical round LCD.
-  The remaining CrowPanel display diagnostics now use the same `mipi_spi`
-  platform so local examples avoid the deprecated driver path.
+  The native display-test was later flashed with `mipi_spi` and stayed blank, so
+  the non-LVGL native display diagnostics remain on the physically proven
+  `ili9xxx` path until the native `mipi_spi` path is understood.
+- 2026-05-21 stale-artifact warning: the ignored `.esphome/` build directory can
+  retain old `firmware.factory.bin` files after YAML changes. Flashing a factory
+  image by path without a successful fresh compile of the same YAML can replay a
+  stale bad build. The documented flash target is the LVGL diagnostic factory
+  image immediately after compiling the LVGL diagnostic YAML.
+- 2026-05-21 display-test recovery: after a fresh rebuild and flash, the native
+  `crowpanel-128-display-test` stayed blank until it was updated to enable the
+  same GPIO1/GPIO2 output rails used by `crowpanel-128-io-diagnostic`, in
+  addition to GPIO40/backlight. A rebuilt factory image then flashed
+  successfully and camera capture
+  `artifacts/crowpanel-camera-20260522T010845Z.jpg` showed the display-test
+  target pattern on the round LCD.
+- 2026-05-21 backlight example cleanup: `crowpanel-128-backlight` now enables
+  GPIO40 plus GPIO1/GPIO2 before blinking GPIO46, matching the CrowPanel power
+  setup used by the display-capable examples.
+- 2026-05-21 monitor wrapper: `tools/espwb-monitor` now opens raw DUT serial
+  logs over the RFC2217 `${ESP_PORT}` from `config/workbench.env` and runs
+  `tools/espwb-esptool flash-id` on exit to recover from the known
+  blank/frozen-after-monitor-close behavior. A short timeout-driven monitor run
+  captured diagnostic phase logs, ran the recovery check, and camera capture
+  `artifacts/crowpanel-camera-20260522T013654Z.jpg` confirmed the display was
+  not blank afterward.
 - 2026-05-20 workbench outage note: the workbench temporarily became
   unreachable from the Linux host (`Destination Host Unreachable`, incomplete
   ARP for the local workbench host). After reboot, SSH/RFC2217 recovered. Current boot health

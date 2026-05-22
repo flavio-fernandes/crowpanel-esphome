@@ -24,7 +24,10 @@ Validated hardware baseline:
 - Current flashed example: examples/crowpanel-128-lvgl-diagnostic/crowpanel-128-lvgl-diagnostic.yaml
 - Previous known-good IO diagnostic: examples/crowpanel-128-io-diagnostic/crowpanel-128-io-diagnostic.yaml
 - Board identity: ESP32-S3 QFN56 rev v0.2, 8MB embedded PSRAM, 16MB flash, USB-Serial/JTAG.
-- Display works with ESPHome mipi_spi GC9A01A at 20MHz.
+- LVGL display works with ESPHome mipi_spi GC9A01A at 20MHz.
+- Native ESPHome display diagnostics currently use ili9xxx GC9A01A at 20MHz;
+  native mipi_spi display-test builds compile but have stayed blank on the
+  physical LCD.
 - Display pins: SCLK GPIO10, MOSI GPIO11, CS GPIO9, DC GPIO3, reset GPIO14.
 - Backlight/control outputs: GPIO46 LEDC at 60%, GPIO40 on, GPIO1/GPIO2 on.
 - Rear RGB LEDs work: GPIO48, 5 WS2812 LEDs, GRB, brightness 40%, use_psram false.
@@ -34,7 +37,9 @@ Validated hardware baseline:
 - Runtime validation captured rotary values in both directions, repeated knob button press/release logs, touch coordinates, and continued LCD update returns during one serial session.
 - First LVGL diagnostic exists at examples/crowpanel-128-lvgl-diagnostic/crowpanel-128-lvgl-diagnostic.yaml.
 - The LVGL diagnostic validates, compiles, and has been flashed to SLOT1 through tools/espwb-esptool.
-- The 2026-05-21 `mipi_spi` migration removed the `ili9xxx` deprecation warning; camera capture after flashing showed the LVGL UI rendered on the round LCD.
+- The 2026-05-21 `mipi_spi` migration removed the `ili9xxx` deprecation warning
+  for the LVGL diagnostic; camera capture after flashing showed the LVGL UI
+  rendered on the round LCD.
 - Camera capture artifacts/crowpanel-camera-20260520T204817Z.jpg confirmed the LVGL page on the round LCD and blue rear LEDs.
 - LVGL runtime input validation captured touch logs, rotary movement in both directions, knob button press/release logs, and visible rotary-to-LVGL status label feedback.
 - The RFC2217-close blank/frozen behavior reproduced on the LVGL diagnostic, and tools/espwb-esptool flash-id recovered it.

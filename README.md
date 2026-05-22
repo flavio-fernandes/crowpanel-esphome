@@ -32,9 +32,14 @@ Useful commands inside the devcontainer:
 tools/validate-workbench.sh
 tools/espwb-esptool flash-id
 tools/espwb-esptool chip-id
+tools/espwb-monitor
 python3 -m esptool version
 esphome version
 ```
+
+`tools/espwb-monitor` opens raw DUT serial logs over the RFC2217 monitor port
+and runs a reset-aware `tools/espwb-esptool flash-id` after the monitor exits to
+recover from the known CrowPanel blank/frozen-on-monitor-close behavior.
 
 Known-good example:
 

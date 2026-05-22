@@ -56,16 +56,16 @@ rendering engine and LVGL.
 
 URL: https://esphome.io/components/display/mipi_spi.html
 
-Use this as the current validated ESPHome display driver path for the GC9A01A
-240 x 240 panel.
+Use this as the current validated ESPHome LVGL display driver path for the
+GC9A01A 240 x 240 panel.
 
 ### ESPHome ILI9xxx display docs
 
 URL: https://esphome.io/components/display/ili9xxx/
 
-Historical reference only for this repo. Early bring-up used `ili9xxx` because
-Elecrow's examples used it, but ESPHome now deprecates it and the local
-CrowPanel examples have been moved to `mipi_spi`.
+Use this as the current native ESPHome drawing path for the display-test and IO
+diagnostic examples. ESPHome now deprecates it, but native `mipi_spi` builds
+have stayed blank on the physical LCD while LVGL over `mipi_spi` works.
 
 ### ESPHome CST816 touchscreen docs
 

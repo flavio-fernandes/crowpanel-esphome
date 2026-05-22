@@ -14,6 +14,9 @@ esphome:
           level: 60%
       - delay: 200ms
       - output.turn_on: power_light
+      - output.turn_on: out1_enable
+      - output.turn_on: out2_enable
+      - component.update: round_display
 
 esp32:
   board: esp32-s3-devkitc-1
@@ -36,21 +39,22 @@ spi:
 output:
   - platform: ledc
     id: screen_backlight_pwm
+    frequency: 5000Hz
     pin:
       number: GPIO46
       ignore_strapping_warning: true
   - platform: gpio
     id: power_light
     pin: GPIO40
-
-light:
-  - platform: monochromatic
-    id: back_light
-    output: screen_backlight_pwm
-    restore_mode: ALWAYS_ON
+  - platform: gpio
+    id: out1_enable
+    pin: GPIO1
+  - platform: gpio
+    id: out2_enable
+    pin: GPIO2
 
 display:
-  - platform: mipi_spi
+  - platform: ili9xxx
     id: round_display
     model: GC9A01A
     cs_pin: GPIO9
@@ -62,10 +66,17 @@ display:
       width: 240
       height: 240
     invert_colors: true
-    show_test_card: true
     rotation: 0
     data_rate: 20MHz
     auto_clear_enabled: false
+    update_interval: 1s
+    lambda: |-
+      it.fill(Color(0, 64, 160));
+      it.filled_circle(120, 120, 72, Color(0, 0, 0));
+      it.circle(120, 120, 112, Color(255, 255, 255));
+      it.circle(120, 120, 76, Color(255, 255, 0));
+      it.line(0, 120, 239, 120, Color(255, 255, 255));
+      it.line(120, 0, 120, 239, Color(255, 255, 255));
 
 interval:
   - interval: 5s

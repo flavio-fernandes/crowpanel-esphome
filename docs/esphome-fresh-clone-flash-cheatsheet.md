@@ -136,6 +136,10 @@ examples/crowpanel-128-lvgl-diagnostic/.esphome/build/crowpanel-128-lvgl-diagnos
 If that file is missing, stop and fix the compile. Do not guess offsets or flash
 another binary.
 
+If that file exists from an earlier run but the compile you just ran did not
+finish successfully, treat the file as stale and do not flash it. The ignored
+`.esphome/` directory is a cache/build output directory, not source of truth.
+
 ## 6. Check the board identity before flashing
 
 ```bash
@@ -148,6 +152,9 @@ test board; the CrowPanel LVGL target is ESP32-S3 with 16MB flash. If the slot o
 chip does not match the device you intend to flash, stop.
 
 ## 7. Flash the CrowPanel through the reset-aware helper
+
+Use this command only after step 5 has just completed successfully for the same
+LVGL YAML.
 
 ```bash
 devcontainer exec --workspace-folder . tools/espwb-esptool write-flash 0x0 examples/crowpanel-128-lvgl-diagnostic/.esphome/build/crowpanel-128-lvgl-diagnostic/.pioenvs/crowpanel-128-lvgl-diagnostic/firmware.factory.bin
@@ -172,6 +179,53 @@ devcontainer exec --workspace-folder . tools/espwb-esptool flash-id
 
 The diagnostic should bring up the round display, touch label, rotary arc, knob
 button handling, backlight, output enables, power light, and blue ambient LEDs.
+
+## 9. Monitor DUT logs
+
+Use the project monitor wrapper to watch raw DUT serial logs through RFC2217:
+
+```bash
+devcontainer exec --workspace-folder . tools/espwb-monitor
+```
+
+The wrapper reads `config/workbench.env`, uses `${ESP_PORT}`, and does not use
+RFC2217 for flashing. Press `Ctrl-C` to exit the monitor.
+
+Closing an RFC2217 monitor session can leave the CrowPanel display visually
+blank or frozen. To make the common path safer, `tools/espwb-monitor` runs this
+reset-aware recovery check automatically after the monitor exits:
+
+```bash
+tools/espwb-esptool flash-id
+```
+
+Set `ESPWB_MONITOR_RECOVER=0` only when intentionally debugging the RFC2217
+close behavior and you do not want that automatic check.
+
+## 10. Recover a blank or stuck DUT
+
+If the CrowPanel display is blank after a flash, first run a reset-aware
+identity check. This can recover a blank/frozen state caused by closing an
+RFC2217 serial monitor:
+
+```bash
+devcontainer exec --workspace-folder . tools/espwb-esptool flash-id
+```
+
+If the display is still blank, treat the flashed app as suspect. Rebuild and
+flash the known-good LVGL diagnostic through the reset-aware helper:
+
+```bash
+devcontainer exec --workspace-folder . esphome config examples/crowpanel-128-lvgl-diagnostic/crowpanel-128-lvgl-diagnostic.yaml
+devcontainer exec --workspace-folder . esphome compile examples/crowpanel-128-lvgl-diagnostic/crowpanel-128-lvgl-diagnostic.yaml
+devcontainer exec --workspace-folder . tools/espwb-esptool write-flash 0x0 examples/crowpanel-128-lvgl-diagnostic/.esphome/build/crowpanel-128-lvgl-diagnostic/.pioenvs/crowpanel-128-lvgl-diagnostic/firmware.factory.bin
+```
+
+Confirm recovery with the workbench camera:
+
+```bash
+tools/crowpanel-camera-capture
+```
 
 ## Safety reminders
 
