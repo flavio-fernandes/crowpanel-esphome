@@ -15,6 +15,8 @@ Related setup notes:
 - Argon and reusable platform provisioning notes: `docs/platform-cookiecutter-plan.md`
 - Short command reference: `docs/esphome-workbench-cheatsheet.md`
 - Local config file rules: `config/README.md`
+- CrowPanel ESPHome configs: `esphome/README.md`
+- Home Assistant helper package: `config/home-assistant/ego-charger-helpers.yaml`
 
 ## 1. Clone the repo on Argon
 
@@ -86,12 +88,42 @@ api_encryption_key: "your-api-key"
 ota_password: "your-ota-password"
 ```
 
-`esphome/secrets.yaml` is ignored by git. The current
-`examples/crowpanel-128-lvgl-diagnostic/crowpanel-128-lvgl-diagnostic.yaml`
-does not require these secrets, but keeping the file populated avoids surprises
-when compiling examples that do use Wi-Fi, API, or OTA.
+`esphome/secrets.yaml` is ignored by git. `esphome/crowpanel.yaml` requires all
+four values because it uses Wi-Fi, encrypted Home Assistant API, and OTA.
 
-## 4. Build or open the devcontainer
+Generate a new ESPHome API encryption key from an existing ESPHome environment
+or the ESPHome dashboard, then paste only the key value into the local secrets
+file. Do not reuse a public example value.
+
+The CrowPanel diagnostic examples may not require these secrets, but keeping
+the file populated avoids surprises when switching between examples and
+`esphome/crowpanel.yaml`.
+
+## 4. Prepare Home Assistant helpers for `crowpanel.yaml`
+
+`esphome/crowpanel.yaml` is an EGO charger timer panel. By default it imports
+these Home Assistant entities:
+
+```text
+switch.ego_charger
+sensor.ego_charger_power
+input_number.ego_charger_preset_duration_minutes
+input_datetime.ego_charger_timer_end_time
+input_boolean.ego_charger_timer_active
+input_boolean.ego_charger_panel_pending_off
+```
+
+Install or include `config/home-assistant/ego-charger-helpers.yaml` as a Home
+Assistant package to create the helper entities. You still need a real
+`switch.ego_charger` and `sensor.ego_charger_power`, or you need to edit the
+substitutions at the top of `esphome/crowpanel.yaml` to match your local entity
+IDs before compiling.
+
+After the device is added to Home Assistant, allow the ESPHome integration for
+this device to make Home Assistant service calls. The panel uses explicit
+`switch.turn_on` and `switch.turn_off` calls for the charger switch.
+
+## 5. Build or open the devcontainer
 
 From the repo root on Argon:
 
@@ -120,7 +152,31 @@ the workbench, the reset-aware helper, and `SLOT1` flash identity. It skips the
 RFC2217 open/close monitor test by default because RFC2217 is for monitoring
 only and can perturb the CrowPanel USB-serial path.
 
-## 5. Compile the CrowPanel LVGL diagnostic YAML
+## 6. Compile firmware
+
+### Option A: compile the production charger panel
+
+Use this path for `esphome/crowpanel.yaml`:
+
+```bash
+devcontainer exec --workspace-folder . esphome config esphome/crowpanel.yaml
+devcontainer exec --workspace-folder . esphome compile esphome/crowpanel.yaml
+```
+
+The expected factory firmware path is:
+
+```text
+esphome/.esphome/build/crowpanel/.pioenvs/crowpanel/firmware.factory.bin
+```
+
+If that file is missing, stop and fix the compile. Do not guess offsets or flash
+another binary.
+
+If that file exists from an earlier run but the compile you just ran did not
+finish successfully, treat the file as stale and do not flash it. The ignored
+`.esphome/` directory is a cache/build output directory, not source of truth.
+
+### Option B: compile the known-good LVGL diagnostic
 
 ```bash
 devcontainer exec --workspace-folder . esphome config examples/crowpanel-128-lvgl-diagnostic/crowpanel-128-lvgl-diagnostic.yaml
@@ -140,7 +196,7 @@ If that file exists from an earlier run but the compile you just ran did not
 finish successfully, treat the file as stale and do not flash it. The ignored
 `.esphome/` directory is a cache/build output directory, not source of truth.
 
-## 6. Check the board identity before flashing
+## 7. Check the board identity before flashing
 
 ```bash
 devcontainer exec --workspace-folder . tools/espwb-esptool flash-id
@@ -151,10 +207,17 @@ Older validation notes recorded an ESP32-D0WDQ6 with 4MB flash for the Feather
 test board; the CrowPanel LVGL target is ESP32-S3 with 16MB flash. If the slot or
 chip does not match the device you intend to flash, stop.
 
-## 7. Flash the CrowPanel through the reset-aware helper
+## 8. Flash the CrowPanel through the reset-aware helper
 
-Use this command only after step 5 has just completed successfully for the same
-LVGL YAML.
+Use the command matching the YAML you just compiled.
+
+For `esphome/crowpanel.yaml`:
+
+```bash
+devcontainer exec --workspace-folder . tools/espwb-esptool write-flash 0x0 esphome/.esphome/build/crowpanel/.pioenvs/crowpanel/firmware.factory.bin
+```
+
+For the LVGL diagnostic:
 
 ```bash
 devcontainer exec --workspace-folder . tools/espwb-esptool write-flash 0x0 examples/crowpanel-128-lvgl-diagnostic/.esphome/build/crowpanel-128-lvgl-diagnostic/.pioenvs/crowpanel-128-lvgl-diagnostic/firmware.factory.bin
@@ -169,7 +232,7 @@ This command SSHs to the workbench and runs:
 It intentionally does not flash over RFC2217 and does not use RFC2217 reset
 control.
 
-## 8. Quick post-flash check
+## 9. Quick post-flash check
 
 Run another reset-aware identity check:
 
@@ -177,10 +240,15 @@ Run another reset-aware identity check:
 devcontainer exec --workspace-folder . tools/espwb-esptool flash-id
 ```
 
+For `esphome/crowpanel.yaml`, the panel should boot into the EGO charger timer
+UI, connect to Wi-Fi, and connect to Home Assistant. If HA helpers are present
+and the ESPHome integration is allowed to call HA services, the touch target,
+knob button, and rotary ring should control the configured charger timer flow.
+
 The diagnostic should bring up the round display, touch label, rotary arc, knob
 button handling, backlight, output enables, power light, and blue ambient LEDs.
 
-## 9. Monitor DUT logs
+## 10. Monitor DUT logs
 
 Use the project monitor wrapper to watch raw DUT serial logs through RFC2217:
 
@@ -202,7 +270,22 @@ tools/espwb-esptool flash-id
 Set `ESPWB_MONITOR_RECOVER=0` only when intentionally debugging the RFC2217
 close behavior and you do not want that automatic check.
 
-## 10. Recover a blank or stuck DUT
+## 11. Capture a physical verification photo
+
+Use the workbench camera to verify the display after flashing:
+
+```bash
+tools/crowpanel-camera-capture
+```
+
+Captures normally go under ignored `artifacts/`. To replace the README image
+with a fresh in-use shot, capture directly to the committed docs image path:
+
+```bash
+tools/crowpanel-camera-capture docs/images/crowpanel-ego-charger-in-use.jpg
+```
+
+## 12. Recover a blank or stuck DUT
 
 If the CrowPanel display is blank after a flash, first run a reset-aware
 identity check. This can recover a blank/frozen state caused by closing an

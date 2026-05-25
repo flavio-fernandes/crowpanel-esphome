@@ -1,0 +1,32 @@
+# Home Assistant package for the CrowPanel EGO charger timer.
+#
+# Install by copying or including this file as a Home Assistant package. The
+# entity IDs are intentionally fixed because the CrowPanel ESPHome YAML imports
+# them directly.
+#
+# Also configure the ESPHome integration for the CrowPanel device to allow Home
+# Assistant service/action calls from the DUT. The panel uses explicit
+# switch.turn_on and switch.turn_off service calls for switch.ego_charger; if HA
+# does not trust/allow the device to make service calls, screen taps will update
+# the local UI but will not control the charger switch.
+
+input_number:
+  ego_charger_preset_duration_minutes:
+    name: EGO charger preset duration
+    min: 1
+    max: 180
+    step: 1
+    mode: box
+    unit_of_measurement: min
+
+input_datetime:
+  ego_charger_timer_end_time:
+    name: EGO charger timer end time
+    has_date: true
+    has_time: true
+
+input_boolean:
+  ego_charger_timer_active:
+    name: EGO charger timer active
+  ego_charger_panel_pending_off:
+    name: EGO charger panel pending off

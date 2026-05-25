@@ -1,8 +1,14 @@
 # ESPHome configs
 
-This directory will hold CrowPanel ESPHome YAML files.
+This directory holds CrowPanel ESPHome YAML files.
 
-For now, do not add full display, touch, rotary encoder, or LVGL config until the devcontainer and workbench tools are validated.
+Current primary firmware:
+
+- `crowpanel.yaml` - EGO charger timer UI for the Elecrow CrowPanel 1.28-inch
+  ESP32-S3 rotary touch display.
+
+See `../docs/esphome-fresh-clone-flash-cheatsheet.md` for the fresh clone,
+secrets, compile, and flash workflow.
 
 Secrets strategy:
 

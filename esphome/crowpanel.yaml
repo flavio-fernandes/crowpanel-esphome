@@ -1,0 +1,2000 @@
+substitutions:
+  # Change this to something unique for each device
+  device_name: crowpanel
+  friendly_name: crowpanel
+
+  # CrowPanel / EGO charger timer configuration
+  ego_charger_switch_entity: switch.ego_charger
+  ego_charger_power_entity: sensor.ego_charger_power
+  ego_charger_preset_duration_entity: input_number.ego_charger_preset_duration_minutes
+  ego_charger_timer_end_time_entity: input_datetime.ego_charger_timer_end_time
+  ego_charger_timer_active_entity: input_boolean.ego_charger_timer_active
+  ego_charger_panel_pending_off_entity: input_boolean.ego_charger_panel_pending_off
+
+  ego_charger_default_timer_minutes: "10"
+  ego_charger_max_timer_minutes: "180"
+
+  ego_charger_charging_enter_threshold_watts: "20"
+  ego_charger_charging_exit_threshold_watts: "15"
+  ego_charger_charging_power_stable_seconds: "10"
+
+  ego_charger_off_led_visible_brightness: "35%"
+  ego_charger_off_led_blanked_pulse_min: "15"
+  ego_charger_off_led_blanked_pulse_max: "35"
+  ego_charger_off_led_blanked_pulse_period_ms: "5000"
+  ego_charger_off_screen_blank_minutes: "60"
+  # Keep this empty for normal firmware. Set to a short value such as "15"
+  # only in temporary local test builds when validating screen blanking.
+  ego_charger_off_screen_blank_seconds_override: "0"
+
+esphome:
+  name: $device_name
+  friendly_name: $friendly_name
+  min_version: 2025.10.0
+  platformio_options:
+    build_flags: "-DBOARD_HAS_PSRAM"
+    board_build.esp-idf.memory_type: qio_opi
+    board_build.flash_mode: dio
+  on_boot:
+    priority: -100
+    then:
+      - logger.log: "CrowPanel LVGL boot"
+      - output.set_level:
+          id: screen_backlight_pwm
+          level: 60%
+      - output.turn_on: power_light
+      - output.turn_on: out1_enable
+      - output.turn_on: out2_enable
+      - light.turn_on:
+          id: ambient_leds
+          red: 100%
+          green: 0%
+          blue: 0%
+          brightness: ${ego_charger_off_led_visible_brightness}
+          transition_length: 0s
+      - script.execute: ego_charger_mark_interaction
+      - script.execute: ego_charger_schedule_resync
+
+globals:
+  - id: ha_is_connected
+    type: bool
+    restore_value: false
+    initial_value: "false"
+  - id: ego_charger_fsm_state
+    type: int
+    restore_value: false
+    initial_value: "0"  # 0=OFF, 1=ON, 2=CHARGING
+  - id: ego_charger_preset_minutes
+    type: int
+    restore_value: true
+    initial_value: ${ego_charger_default_timer_minutes}
+  - id: ego_charger_remaining_seconds
+    type: int
+    restore_value: false
+    initial_value: "0"
+  - id: ego_charger_total_seconds
+    type: int
+    restore_value: false
+    initial_value: "0"
+  - id: ego_charger_active_end_epoch
+    type: int
+    restore_value: false
+    initial_value: "0"
+  - id: ego_charger_timer_running
+    type: bool
+    restore_value: false
+    initial_value: "false"
+  - id: ego_charger_start_pending
+    type: bool
+    restore_value: false
+    initial_value: "false"
+  - id: ego_charger_start_pending_since_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: "0"
+  - id: ego_charger_stop_pending
+    type: bool
+    restore_value: true
+    initial_value: "false"
+  - id: ego_charger_pending_off
+    type: bool
+    restore_value: true
+    initial_value: "false"
+  - id: ego_charger_switch_seen
+    type: bool
+    restore_value: false
+    initial_value: "false"
+  - id: ego_charger_timer_active_seen
+    type: bool
+    restore_value: false
+    initial_value: "false"
+  - id: ego_charger_timer_end_time_seen
+    type: bool
+    restore_value: false
+    initial_value: "false"
+  - id: ego_charger_preset_duration_seen
+    type: bool
+    restore_value: false
+    initial_value: "false"
+  - id: ego_charger_panel_pending_off_seen
+    type: bool
+    restore_value: false
+    initial_value: "false"
+  - id: ego_charger_feedback_until_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: "0"
+  - id: ego_charger_feedback_text
+    type: std::string
+    restore_value: false
+    initial_value: '""'
+  - id: ego_charger_last_action_result
+    type: std::string
+    restore_value: false
+    initial_value: '"booting"'
+  - id: ego_charger_effective_state
+    type: std::string
+    restore_value: false
+    initial_value: '"SYNCING"'
+  - id: ego_charger_last_screen_press_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: "0"
+  - id: ego_charger_screen_press_action
+    type: std::string
+    restore_value: false
+    initial_value: '"ignored_unknown"'
+  - id: ego_charger_press_source
+    type: std::string
+    restore_value: false
+    initial_value: '"test"'
+  - id: ego_charger_switch_on_since_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: "0"
+  - id: ego_ring_delta
+    type: int
+    restore_value: false
+    initial_value: "0"
+  - id: ego_screen_blanked
+    type: bool
+    restore_value: false
+    initial_value: "false"
+  - id: ego_last_interaction_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: "0"
+
+esp32:
+  board: esp32-s3-devkitc-1
+  flash_size: 16MB
+  framework:
+    type: esp-idf
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+logger:
+  level: DEBUG
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: !secret api_encryption_key
+  on_client_connected:
+    - if:
+        condition:
+          lambda: 'return (0 == client_info.find("Home Assistant "));'
+        then:
+          - globals.set:
+              id: ha_is_connected
+              value: "true"
+          - lambda: |-
+              id(ego_charger_switch_seen) = false;
+              id(ego_charger_timer_active_seen) = false;
+              id(ego_charger_timer_end_time_seen) = false;
+              id(ego_charger_preset_duration_seen) = false;
+              id(ego_charger_panel_pending_off_seen) = false;
+          - lvgl.widget.show: lbl_hastatus
+          - script.execute: ego_charger_schedule_resync
+          - script.execute: ego_charger_retry_pending_off
+  on_client_disconnected:
+    - if:
+        condition:
+          lambda: 'return (0 == client_info.find("Home Assistant "));'
+        then:
+          - globals.set:
+              id: ha_is_connected
+              value: "false"
+          - lvgl.widget.hide: lbl_hastatus
+
+# Set OTA password
+ota:
+  platform: esphome
+  password: !secret ota_password
+
+# Setup WiFi credentials
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  min_auth_mode: WPA2
+
+  # manual_ip:
+  #   # Set this to the IP of the ESP
+  #   static_ip: 192.0.2.244
+  #   # Set this to the IP address of the router. Often ends with .1
+  #   gateway: 192.0.2.1
+  #   # The subnet of the network. 255.255.255.0 works for most home networks.
+  #   subnet: 255.255.254.0
+
+time:
+  - platform: homeassistant
+    id: ha_time
+    timezone: America/New_York
+
+interval:
+  - interval: 1s
+    then:
+      - script.execute: ego_charger_clear_feedback
+      - script.execute: ego_charger_check_start_timeout
+      - script.execute: ego_charger_check_helper_import_timeout
+      - script.execute: ego_charger_tick
+      - script.execute: ego_charger_check_screen_blank
+  - interval: 15s
+    then:
+      - script.execute: ego_charger_retry_pending_off
+
+script:
+  - id: ego_charger_schedule_resync
+    mode: restart
+    then:
+      - delay: 750ms
+      - script.execute: ego_charger_resync
+
+  - id: ego_charger_mark_interaction
+    mode: restart
+    then:
+      - lambda: "id(ego_last_interaction_ms) = millis();"
+
+  - id: ego_charger_set_last_action_result
+    mode: restart
+    then:
+      - lambda: |-
+          id(ego_charger_action_result).publish_state(id(ego_charger_last_action_result));
+
+  - id: ego_charger_update_effective_state
+    mode: restart
+    then:
+      - lambda: |-
+          const bool feedback_active =
+            id(ego_charger_feedback_until_ms) != 0 &&
+            millis() <= id(ego_charger_feedback_until_ms);
+          std::string state;
+          if (feedback_active && id(ego_charger_feedback_text) == "Start failed") {
+            state = "START_FAILED";
+          } else if (feedback_active && id(ego_charger_feedback_text) == "Start timeout") {
+            state = "START_TIMEOUT";
+          } else if (id(ego_charger_start_pending)) {
+            state = "STARTING";
+          } else if ((id(ego_charger_stop_pending) || id(ego_charger_pending_off)) &&
+                     ((id(ego_charger_switch_seen) && id(ego_charger_switch).state) ||
+                      id(ego_charger_timer_running) ||
+                      id(ego_charger_fsm_state) != 0)) {
+            state = "OFF_PENDING";
+          } else if (!id(ha_is_connected) &&
+                     !(id(ego_charger_timer_running) ||
+                       id(ego_charger_fsm_state) != 0 ||
+                       (id(ego_charger_switch_seen) && id(ego_charger_switch).state))) {
+            state = "HA_UNAVAILABLE";
+          } else if (!id(ego_charger_switch_seen)) {
+            state = "SYNCING";
+          } else if (!id(ego_charger_switch).state) {
+            state = "OFF";
+          } else if (id(ego_charger_fsm_state) == 2) {
+            state = "CHARGING";
+          } else {
+            state = "ON";
+          }
+          if (id(ego_charger_effective_state) != state) {
+            id(ego_charger_effective_state) = state;
+            id(ego_charger_effective_state_sensor).publish_state(state);
+            ESP_LOGI("ego_charger", "effective state -> %s", state.c_str());
+          }
+
+  - id: ego_charger_show_feedback
+    mode: restart
+    then:
+      - lambda: |-
+          id(ego_charger_feedback_until_ms) = millis() + 2500;
+      - script.execute: ego_charger_update_screen
+
+  - id: ego_charger_clear_feedback
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: "return id(ego_charger_feedback_until_ms) != 0 && millis() > id(ego_charger_feedback_until_ms);"
+          then:
+            - lambda: |-
+                id(ego_charger_feedback_until_ms) = 0;
+                id(ego_charger_feedback_text).clear();
+            - script.execute: ego_charger_update_screen
+
+  - id: ego_charger_check_start_timeout
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(ego_charger_start_pending) &&
+                id(ego_charger_start_pending_since_ms) != 0 &&
+                millis() - id(ego_charger_start_pending_since_ms) > 10000UL;
+          then:
+            - lambda: |-
+                id(ego_charger_start_pending) = false;
+                id(ego_charger_start_pending_since_ms) = 0;
+                id(ego_charger_stop_pending) = true;
+                id(ego_charger_pending_off) = true;
+                id(ego_charger_timer_running) = false;
+                id(ego_charger_remaining_seconds) = 0;
+                id(ego_charger_total_seconds) = 0;
+                id(ego_charger_active_end_epoch) = 0;
+                if (id(ego_charger_fsm_state) == 0) {
+                  id(ego_charger_fsm_state) = 1;
+                }
+                id(ego_charger_feedback_text) = "Off pending";
+                id(ego_charger_feedback_until_ms) = 0;
+                id(ego_charger_last_action_result) = "start timeout fail-safe off pending";
+                ESP_LOGW("ego_charger", "EGO charger start timed out; attempting fail-safe switch.turn_off and waiting for ${ego_charger_switch_entity} to confirm OFF");
+            - script.execute: ego_charger_set_last_action_result
+            - script.execute: ego_charger_publish_timer_inactive
+            - script.execute: ego_charger_publish_pending_off
+            - if:
+                condition:
+                  lambda: "return id(ha_is_connected);"
+                then:
+                  - homeassistant.action:
+                      action: switch.turn_off
+                      data:
+                        entity_id: ${ego_charger_switch_entity}
+                      on_success:
+                        then:
+                          - lambda: |-
+                              id(ego_charger_last_action_result) = "start timeout fail-safe off sent";
+                              ESP_LOGI("ego_charger", "HA action switch.turn_off accepted after EGO charger start timeout");
+                          - script.execute: ego_charger_set_last_action_result
+                      on_error:
+                        then:
+                          - lambda: |-
+                              id(ego_charger_pending_off) = true;
+                              id(ego_charger_stop_pending) = true;
+                              id(ego_charger_last_action_result) = "start timeout fail-safe off failed";
+                              ESP_LOGW("ego_charger", "HA action switch.turn_off failed after EGO charger start timeout; keeping pending_off true");
+                          - script.execute: ego_charger_set_last_action_result
+                          - script.execute: ego_charger_publish_pending_off
+            - script.execute: ego_charger_apply_state
+
+  - id: ego_charger_start_local_protective_timer
+    mode: restart
+    then:
+      - lambda: |-
+          int preset = id(ego_charger_preset_minutes);
+          if (preset < 1 || preset > atoi("${ego_charger_max_timer_minutes}")) {
+            preset = atoi("${ego_charger_default_timer_minutes}");
+            preset = max(1, min(atoi("${ego_charger_max_timer_minutes}"), preset));
+            id(ego_charger_preset_minutes) = preset;
+          }
+          id(ego_charger_timer_running) = true;
+          id(ego_charger_remaining_seconds) = preset * 60;
+          id(ego_charger_total_seconds) = id(ego_charger_remaining_seconds);
+          if (id(ha_time).now().is_valid()) {
+            id(ego_charger_active_end_epoch) = id(ha_time).now().timestamp + id(ego_charger_remaining_seconds);
+          } else {
+            id(ego_charger_active_end_epoch) = 0;
+          }
+          if (id(ego_charger_fsm_state) == 0) {
+            id(ego_charger_fsm_state) = 1;
+          }
+          ESP_LOGI("ego_charger", "Started local protective timer for %d minutes", preset);
+
+  - id: ego_charger_check_helper_import_timeout
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: |-
+              const bool helpers_ready =
+                (id(ego_charger_timer_active_seen) || id(ego_charger_timer_active).has_state()) &&
+                (id(ego_charger_timer_end_time_seen) || id(ego_charger_timer_end_time).has_state()) &&
+                (id(ego_charger_preset_duration_seen) || id(ego_charger_preset_duration).has_state()) &&
+                (id(ego_charger_panel_pending_off_seen) || id(ego_charger_panel_pending_off).has_state());
+              return id(ego_charger_switch_seen) &&
+                id(ego_charger_switch).state &&
+                !id(ego_charger_timer_running) &&
+                !helpers_ready &&
+                id(ego_charger_switch_on_since_ms) != 0 &&
+                millis() - id(ego_charger_switch_on_since_ms) >= 20000UL;
+          then:
+            - logger.log: "EGO charger helper import timed out; starting protective local timer"
+            - script.execute: ego_charger_start_local_protective_timer
+            - script.execute: ego_charger_apply_state
+
+  - id: ego_charger_publish_timer_active
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: "return id(ha_is_connected);"
+          then:
+            # Home Assistant must enable "Allow the device to perform Home Assistant actions"
+            # for this ESPHome device. If disabled, the panel may show STARTING but
+            # ${ego_charger_switch_entity} will not turn on.
+            - homeassistant.action:
+                action: input_boolean.turn_on
+                data:
+                  entity_id: ${ego_charger_timer_active_entity}
+                on_success:
+                  then:
+                    - lambda: |-
+                        id(ego_charger_last_action_result) = "timer_active action sent";
+                        ESP_LOGI("ego_charger", "HA action input_boolean.turn_on accepted for ${ego_charger_timer_active_entity}");
+                    - script.execute: ego_charger_set_last_action_result
+                on_error:
+                  then:
+                    - lambda: |-
+                        id(ego_charger_last_action_result) = "timer_active action failed";
+                        ESP_LOGW("ego_charger", "HA action input_boolean.turn_on failed for ${ego_charger_timer_active_entity}");
+                    - script.execute: ego_charger_set_last_action_result
+            # data_template is Home Assistant Jinja. ESPHome lambda values are passed
+            # through variables so HA receives a normal template string.
+            - homeassistant.action:
+                action: input_datetime.set_datetime
+                data:
+                  entity_id: ${ego_charger_timer_end_time_entity}
+                variables:
+                  ego_charger_end_datetime: !lambda |-
+                    if (id(ego_charger_active_end_epoch) <= 0) {
+                      return std::string("");
+                    }
+                    ESPTime end_time = ESPTime::from_epoch_local(id(ego_charger_active_end_epoch));
+                    if (!end_time.is_valid()) {
+                      return std::string("");
+                    }
+                    char buffer[24];
+                    end_time.strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S");
+                    return std::string(buffer);
+                data_template:
+                  datetime: "{{ ego_charger_end_datetime }}"
+                on_success:
+                  then:
+                    - lambda: |-
+                        id(ego_charger_last_action_result) = "timer end action sent";
+                        ESP_LOGI("ego_charger", "HA action input_datetime.set_datetime accepted for ${ego_charger_timer_end_time_entity}");
+                    - script.execute: ego_charger_set_last_action_result
+                on_error:
+                  then:
+                    - lambda: |-
+                        id(ego_charger_last_action_result) = "timer end action failed";
+                        ESP_LOGW("ego_charger", "HA action input_datetime.set_datetime failed for ${ego_charger_timer_end_time_entity}");
+                    - script.execute: ego_charger_set_last_action_result
+
+  - id: ego_charger_publish_timer_inactive
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: "return id(ha_is_connected);"
+          then:
+            # Home Assistant must enable "Allow the device to perform Home Assistant actions"
+            # for this ESPHome device.
+            - homeassistant.action:
+                action: input_boolean.turn_off
+                data:
+                  entity_id: ${ego_charger_timer_active_entity}
+                on_success:
+                  then:
+                    - lambda: |-
+                        id(ego_charger_last_action_result) = "timer inactive action sent";
+                        ESP_LOGI("ego_charger", "HA action input_boolean.turn_off accepted for ${ego_charger_timer_active_entity}");
+                    - script.execute: ego_charger_set_last_action_result
+                on_error:
+                  then:
+                    - lambda: |-
+                        id(ego_charger_last_action_result) = "timer inactive action failed";
+                        ESP_LOGW("ego_charger", "HA action input_boolean.turn_off failed for ${ego_charger_timer_active_entity}");
+                    - script.execute: ego_charger_set_last_action_result
+
+  - id: ego_charger_publish_pending_off
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: "return id(ha_is_connected);"
+          then:
+            - if:
+                condition:
+                  lambda: "return id(ego_charger_pending_off);"
+                then:
+                  # Home Assistant must enable "Allow the device to perform Home Assistant actions"
+                  # for this ESPHome device.
+                  - homeassistant.action:
+                      action: input_boolean.turn_on
+                      data:
+                        entity_id: ${ego_charger_panel_pending_off_entity}
+                      on_success:
+                        then:
+                          - lambda: |-
+                              id(ego_charger_last_action_result) = "pending_off action sent";
+                              ESP_LOGI("ego_charger", "HA action input_boolean.turn_on accepted for ${ego_charger_panel_pending_off_entity}");
+                          - script.execute: ego_charger_set_last_action_result
+                      on_error:
+                        then:
+                          - lambda: |-
+                              id(ego_charger_last_action_result) = "pending_off action failed";
+                              ESP_LOGW("ego_charger", "HA action input_boolean.turn_on failed for ${ego_charger_panel_pending_off_entity}");
+                          - script.execute: ego_charger_set_last_action_result
+                else:
+                  # Home Assistant must enable "Allow the device to perform Home Assistant actions"
+                  # for this ESPHome device.
+                  - homeassistant.action:
+                      action: input_boolean.turn_off
+                      data:
+                        entity_id: ${ego_charger_panel_pending_off_entity}
+                      on_success:
+                        then:
+                          - lambda: |-
+                              id(ego_charger_last_action_result) = "pending_off clear action sent";
+                              ESP_LOGI("ego_charger", "HA action input_boolean.turn_off accepted for ${ego_charger_panel_pending_off_entity}");
+                          - script.execute: ego_charger_set_last_action_result
+                      on_error:
+                        then:
+                          - lambda: |-
+                              id(ego_charger_last_action_result) = "pending_off clear action failed";
+                              ESP_LOGW("ego_charger", "HA action input_boolean.turn_off failed for ${ego_charger_panel_pending_off_entity}");
+                          - script.execute: ego_charger_set_last_action_result
+
+  - id: ego_charger_publish_preset
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: "return id(ha_is_connected);"
+          then:
+            # Home Assistant must enable "Allow the device to perform Home Assistant actions"
+            # for this ESPHome device.
+            - homeassistant.action:
+                action: input_number.set_value
+                data:
+                  entity_id: ${ego_charger_preset_duration_entity}
+                variables:
+                  ego_charger_preset_value: !lambda "return to_string(id(ego_charger_preset_minutes));"
+                data_template:
+                  value: "{{ ego_charger_preset_value }}"
+                on_success:
+                  then:
+                    - lambda: |-
+                        id(ego_charger_last_action_result) = "preset action sent";
+                        ESP_LOGI("ego_charger", "HA action input_number.set_value accepted for ${ego_charger_preset_duration_entity}");
+                    - script.execute: ego_charger_set_last_action_result
+                on_error:
+                  then:
+                    - lambda: |-
+                        id(ego_charger_last_action_result) = "preset action failed";
+                        ESP_LOGW("ego_charger", "HA action input_number.set_value failed for ${ego_charger_preset_duration_entity}");
+                    - script.execute: ego_charger_set_last_action_result
+
+  - id: ego_charger_blank_screen
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: "return id(ego_charger_fsm_state) == 0 && !id(ego_screen_blanked);"
+          then:
+            - logger.log: "Blanking EGO charger OFF screen"
+            - output.set_level:
+                id: screen_backlight_pwm
+                level: 0%
+            - globals.set:
+                id: ego_screen_blanked
+                value: "true"
+            - script.execute: ego_charger_update_leds
+
+  - id: ego_charger_wake_screen
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: "return id(ego_screen_blanked);"
+          then:
+            - logger.log: "Waking EGO charger screen"
+            - output.set_level:
+                id: screen_backlight_pwm
+                level: 60%
+            - globals.set:
+                id: ego_screen_blanked
+                value: "false"
+            - script.execute: ego_charger_update_screen
+            - script.execute: ego_charger_update_leds
+      - script.execute: ego_charger_mark_interaction
+
+  - id: ego_charger_check_screen_blank
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: |-
+              if (id(ego_charger_fsm_state) != 0 || id(ego_charger_timer_running) || id(ego_screen_blanked)) {
+                return false;
+              }
+              if (id(ego_last_interaction_ms) == 0) {
+                id(ego_last_interaction_ms) = millis();
+                return false;
+              }
+              int blank_after = atoi("${ego_charger_off_screen_blank_seconds_override}");
+              if (blank_after <= 0) {
+                blank_after = atoi("${ego_charger_off_screen_blank_minutes}") * 60;
+              }
+              return (millis() - id(ego_last_interaction_ms)) >= (uint32_t) blank_after * 1000UL;
+          then:
+            - script.execute: ego_charger_blank_screen
+
+  - id: ego_charger_update_leds
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: "return id(ego_charger_fsm_state) == 2;"
+          then:
+            - light.turn_on:
+                id: ambient_leds
+                effect: "Charging Rainbow"
+                brightness: 35%
+          else:
+            - if:
+                condition:
+                  lambda: "return id(ego_charger_fsm_state) == 1;"
+                then:
+                  - light.turn_off:
+                      id: ambient_leds
+                      transition_length: 0s
+                  - light.turn_on:
+                      id: ambient_leds
+                      red: 0%
+                      green: 100%
+                      blue: 0%
+                      brightness: 35%
+                      transition_length: 0s
+                else:
+                  - if:
+                      condition:
+                        lambda: "return id(ego_screen_blanked);"
+                      then:
+                        - light.turn_off:
+                            id: ambient_leds
+                            transition_length: 0s
+                        - light.turn_on:
+                            id: ambient_leds
+                            effect: "Off Red Breathe Blanked"
+                            brightness: 100%
+                      else:
+                        - light.turn_off:
+                            id: ambient_leds
+                            transition_length: 0s
+                        - light.turn_on:
+                            id: ambient_leds
+                            red: 100%
+                            green: 0%
+                            blue: 0%
+                            brightness: ${ego_charger_off_led_visible_brightness}
+                            transition_length: 0s
+
+  - id: ego_charger_update_screen
+    mode: restart
+    then:
+      - script.execute: ego_charger_update_effective_state
+      - if:
+          condition:
+            lambda: "return id(ego_charger_effective_state) == \"OFF\";"
+          then:
+            - lvgl.widget.show: ego_off_state_label
+            - lvgl.widget.hide: ego_state_label
+            - lvgl.widget.hide: ego_timer_arc
+            - lvgl.widget.hide: ego_timer_arc_accent
+            - lvgl.widget.hide: ego_power_label
+            - lvgl.widget.show: ego_hint_label
+          else:
+            - lvgl.widget.hide: ego_off_state_label
+            - lvgl.widget.show: ego_state_label
+            - lvgl.widget.show: ego_timer_arc
+            - lvgl.widget.show: ego_timer_arc_accent
+            - lvgl.widget.show: ego_power_label
+            - lvgl.widget.hide: ego_hint_label
+      - lvgl.label.update:
+          id: ego_state_label
+          text: !lambda |-
+            const std::string state = id(ego_charger_effective_state);
+            if (state == "STARTING") {
+              return std::string("STARTING");
+            }
+            if (state == "OFF_PENDING") {
+              return std::string("OFF PENDING");
+            }
+            if (state == "SYNCING") {
+              return std::string("SYNCING");
+            }
+            if (state == "HA_UNAVAILABLE") {
+              return std::string("HA OFFLINE");
+            }
+            if (state == "START_FAILED") {
+              return std::string("START FAILED");
+            }
+            if (state == "START_TIMEOUT") {
+              return std::string("START TIMEOUT");
+            }
+            if (state == "CHARGING") {
+              if (!id(ha_is_connected)) {
+                return std::string("CHG OFFLINE");
+              }
+              return std::string("CHARGING");
+            }
+            if (state == "ON") {
+              if (!id(ha_is_connected)) {
+                return std::string("ON OFFLINE");
+              }
+              return std::string("ON");
+            }
+            return std::string("OFF");
+          text_color: !lambda |-
+            const std::string state = id(ego_charger_effective_state);
+            if (state == "STARTING" || state == "SYNCING") {
+              return lv_color_hex(0xFFD166);
+            }
+            if (state == "OFF_PENDING" || state == "START_FAILED" || state == "START_TIMEOUT" || state == "HA_UNAVAILABLE") {
+              return lv_color_hex(0xFF8FA3);
+            }
+            if (state == "CHARGING") {
+              return lv_color_hex(0x64FFDA);
+            }
+            if (state == "ON") {
+              return lv_color_hex(0x9DFF7A);
+            }
+            return lv_color_hex(0xFFD166);
+      - lvgl.label.update:
+          id: ego_time_label
+          text: !lambda |-
+            const std::string state = id(ego_charger_effective_state);
+            if (state == "STARTING" || state == "SYNCING") {
+              return std::string("Waiting");
+            }
+            if (state == "HA_UNAVAILABLE") {
+              return std::string("Offline");
+            }
+            if (state == "START_FAILED") {
+              return std::string("Failed");
+            }
+            if (state == "START_TIMEOUT") {
+              return std::string("Timeout");
+            }
+            if (!id(ego_charger_timer_running)) {
+              return to_string(id(ego_charger_preset_minutes)) + " min";
+            }
+            const int remaining = id(ego_charger_remaining_seconds);
+            const int hours = remaining / 3600;
+            const int minutes = (remaining % 3600) / 60;
+            const int seconds = remaining % 60;
+            char buffer[16];
+            if (hours > 0) {
+              snprintf(buffer, sizeof(buffer), "%dh %02dm", hours, minutes);
+            } else {
+              snprintf(buffer, sizeof(buffer), "%d:%02d", minutes, seconds);
+            }
+            return std::string(buffer);
+      - lvgl.label.update:
+          id: ego_power_label
+          text: !lambda |-
+            if (isnan(id(ego_charger_power).state)) {
+              return std::string("-- W");
+            }
+            char buffer[16];
+            snprintf(buffer, sizeof(buffer), "%.0f W", id(ego_charger_power).state);
+            return std::string(buffer);
+      - lvgl.label.update:
+          id: ego_hint_label
+          text: !lambda |-
+            const std::string state = id(ego_charger_effective_state);
+            if (state == "STARTING") {
+              return std::string("Waiting for switch");
+            }
+            if (state == "OFF_PENDING") {
+              return std::string("Retrying off");
+            }
+            if (state == "SYNCING") {
+              return std::string("Waiting for HA state");
+            }
+            if (state == "HA_UNAVAILABLE") {
+              return std::string("HA unavailable");
+            }
+            if (state == "START_FAILED") {
+              return std::string("Start failed");
+            }
+            if (state == "START_TIMEOUT") {
+              return std::string("Start timeout");
+            }
+            if (id(ego_charger_feedback_until_ms) != 0 && millis() <= id(ego_charger_feedback_until_ms)) {
+              return id(ego_charger_feedback_text);
+            }
+            if (!id(ha_is_connected)) {
+              return std::string("HA unavailable");
+            }
+            if (id(ego_charger_fsm_state) == 0) {
+              return std::string("Rotate to set");
+            }
+            return std::string("Rotate to adjust");
+      - lvgl.label.update:
+          id: ego_action_label
+          text: !lambda |-
+            const std::string state = id(ego_charger_effective_state);
+            if (state == "STARTING") {
+              return std::string("Waiting for switch");
+            }
+            if (state == "OFF_PENDING") {
+              return std::string("Retrying off");
+            }
+            if (state == "SYNCING") {
+              return std::string("Syncing");
+            }
+            if (state == "HA_UNAVAILABLE") {
+              return std::string("Cannot start");
+            }
+            if (state == "START_FAILED" || state == "START_TIMEOUT") {
+              return std::string("Tap to retry");
+            }
+            if (id(ego_charger_feedback_until_ms) != 0 && millis() <= id(ego_charger_feedback_until_ms)) {
+              if (id(ego_charger_timer_running)) {
+                return id(ego_charger_feedback_text);
+              }
+              return std::string("");
+            }
+            if (!id(ha_is_connected)) {
+              if (id(ego_charger_fsm_state) == 0) {
+                return std::string("Cannot start");
+              }
+              return std::string("Tap to stop");
+            }
+            if (id(ego_charger_fsm_state) == 0) {
+              return std::string("Tap to start");
+            }
+            return std::string("Tap to stop");
+          text_color: !lambda |-
+            const std::string state = id(ego_charger_effective_state);
+            if (state == "STARTING" || state == "SYNCING") {
+              return lv_color_hex(0xFFD166);
+            }
+            if (state == "OFF_PENDING" || state == "START_FAILED" || state == "START_TIMEOUT") {
+              return lv_color_hex(0xFF8FA3);
+            }
+            if (state == "HA_UNAVAILABLE") {
+              return lv_color_hex(0xFF6B6B);
+            }
+            if (state == "OFF") {
+              return lv_color_hex(0xFFD166);
+            }
+            return lv_color_hex(0xFF8FA3);
+      - lvgl.arc.update:
+          id: ego_timer_arc
+          value: !lambda |-
+            if (!id(ego_charger_timer_running) || id(ego_charger_total_seconds) <= 0) {
+              return 100;
+            }
+            const int remaining = max(0, id(ego_charger_remaining_seconds));
+            return max(1, min(100, (remaining * 100 + id(ego_charger_total_seconds) - 1) / id(ego_charger_total_seconds)));
+      - lvgl.arc.update:
+          id: ego_timer_arc_accent
+          value: !lambda |-
+            if (!id(ego_charger_timer_running) || id(ego_charger_total_seconds) <= 0) {
+              return 100;
+            }
+            const int remaining = max(0, id(ego_charger_remaining_seconds));
+            return max(1, min(100, (remaining * 100 + id(ego_charger_total_seconds) - 1) / id(ego_charger_total_seconds)));
+
+  - id: ego_charger_update_charging_detector
+    mode: restart
+    then:
+      - lambda: |-
+          bool charging_now = false;
+          if (id(ego_charger_timer_running) && id(ego_charger_switch).state && !isnan(id(ego_charger_power).state)) {
+            if (id(ego_charger_fsm_state) == 2) {
+              charging_now = id(ego_charger_power).state >= atof("${ego_charger_charging_exit_threshold_watts}");
+            } else {
+              charging_now = id(ego_charger_power).state > atof("${ego_charger_charging_enter_threshold_watts}");
+            }
+          }
+          id(ego_charger_charging_detected).publish_state(charging_now);
+
+  - id: ego_charger_apply_state
+    mode: restart
+    then:
+      - script.execute: ego_charger_update_leds
+      - if:
+          condition:
+            lambda: "return id(ego_charger_fsm_state) != 0 && id(ego_screen_blanked);"
+          then:
+            - script.execute: ego_charger_wake_screen
+      - script.execute: ego_charger_update_screen
+
+  - id: ego_charger_resync
+    mode: restart
+    then:
+      - lambda: |-
+          auto parse_timer_end = [] (const std::string &value) -> time_t {
+            int year = 0;
+            int month = 0;
+            int day = 0;
+            int hour = 0;
+            int minute = 0;
+            int second = 0;
+            if (sscanf(value.c_str(), "%d-%d-%d %d:%d:%d", &year, &month, &day, &hour, &minute, &second) != 6) {
+              return 0;
+            }
+            ESPTime parsed = {};
+            parsed.year = year;
+            parsed.month = month;
+            parsed.day_of_month = day;
+            parsed.hour = hour;
+            parsed.minute = minute;
+            parsed.second = second;
+            if (!parsed.fields_in_range(false, false)) {
+              return 0;
+            }
+            parsed.recalc_timestamp_local();
+            return parsed.timestamp;
+          };
+          const bool timer_active_ready = id(ego_charger_timer_active_seen) || id(ego_charger_timer_active).has_state();
+          const bool timer_end_time_ready = id(ego_charger_timer_end_time_seen) || id(ego_charger_timer_end_time).has_state();
+          const bool preset_duration_ready = id(ego_charger_preset_duration_seen) || id(ego_charger_preset_duration).has_state();
+          const bool panel_pending_off_ready = id(ego_charger_panel_pending_off_seen) || id(ego_charger_panel_pending_off).has_state();
+          const bool timer_helpers_seen =
+            timer_active_ready &&
+            timer_end_time_ready &&
+            preset_duration_ready &&
+            panel_pending_off_ready;
+          if (preset_duration_ready && !isnan(id(ego_charger_preset_duration).state)) {
+            int preset = (int) roundf(id(ego_charger_preset_duration).state);
+            preset = max(1, min(atoi("${ego_charger_max_timer_minutes}"), preset));
+            id(ego_charger_preset_minutes) = preset;
+          }
+          if (!id(ego_charger_switch_seen)) {
+            ESP_LOGD("ego_charger", "Deferring EGO charger resync until switch state is imported");
+            return;
+          }
+          if (panel_pending_off_ready && id(ego_charger_panel_pending_off).state) {
+            id(ego_charger_pending_off) = id(ego_charger_panel_pending_off).state;
+            id(ego_charger_stop_pending) = id(ego_charger_pending_off);
+          }
+          if (!id(ego_charger_switch).state) {
+            id(ego_charger_fsm_state) = 0;
+            id(ego_charger_timer_running) = false;
+            id(ego_charger_remaining_seconds) = 0;
+            id(ego_charger_total_seconds) = 0;
+            id(ego_charger_active_end_epoch) = 0;
+            id(ego_charger_start_pending) = false;
+            id(ego_charger_start_pending_since_ms) = 0;
+            id(ego_charger_stop_pending) = false;
+            id(ego_charger_pending_off) = false;
+            id(ego_charger_switch_on_since_ms) = 0;
+            return;
+          }
+          if (id(ego_charger_switch_on_since_ms) == 0) {
+            id(ego_charger_switch_on_since_ms) = millis();
+          }
+          if (id(ego_charger_start_pending)) {
+            id(ego_charger_start_pending) = false;
+            id(ego_charger_start_pending_since_ms) = 0;
+            id(ego_charger_last_action_result) = "switch confirmed on";
+            ESP_LOGI("ego_charger", "${ego_charger_switch_entity} confirmed ON");
+          }
+          if (id(ego_charger_fsm_state) == 0) {
+            id(ego_charger_fsm_state) = 1;
+          }
+          time_t persisted_end = 0;
+          const bool clock_valid = id(ha_time).now().is_valid();
+          const time_t now_epoch = clock_valid ? id(ha_time).now().timestamp : 0;
+          if (timer_helpers_seen && id(ego_charger_timer_active).state) {
+            persisted_end = parse_timer_end(id(ego_charger_timer_end_time).state);
+          }
+          if (clock_valid && persisted_end > now_epoch) {
+            id(ego_charger_timer_running) = true;
+            id(ego_charger_active_end_epoch) = persisted_end;
+            id(ego_charger_remaining_seconds) = persisted_end - now_epoch;
+            if (id(ego_charger_total_seconds) <= 0 || id(ego_charger_total_seconds) < id(ego_charger_remaining_seconds)) {
+              id(ego_charger_total_seconds) = id(ego_charger_remaining_seconds);
+            }
+          } else if (clock_valid && persisted_end > 0 && persisted_end <= now_epoch) {
+            id(ego_charger_timer_running) = true;
+            id(ego_charger_active_end_epoch) = persisted_end;
+            id(ego_charger_remaining_seconds) = 0;
+            if (id(ego_charger_total_seconds) <= 0) {
+              id(ego_charger_total_seconds) = 1;
+            }
+          }
+      - script.execute: ego_charger_apply_state
+      - script.execute: ego_charger_update_charging_detector
+      - if:
+          condition:
+            lambda: |-
+              const bool timer_helpers_seen =
+                (id(ego_charger_timer_active_seen) || id(ego_charger_timer_active).has_state()) &&
+                (id(ego_charger_timer_end_time_seen) || id(ego_charger_timer_end_time).has_state()) &&
+                (id(ego_charger_preset_duration_seen) || id(ego_charger_preset_duration).has_state()) &&
+                (id(ego_charger_panel_pending_off_seen) || id(ego_charger_panel_pending_off).has_state());
+              return id(ego_charger_switch_seen) &&
+                id(ego_charger_switch).state &&
+                timer_helpers_seen &&
+                !id(ego_charger_timer_running);
+          then:
+            - script.execute: ego_charger_start_local_protective_timer
+            - script.execute: ego_charger_apply_state
+      - if:
+          condition:
+            lambda: "return id(ego_charger_switch_seen) && !id(ego_charger_switch).state;"
+          then:
+            - script.execute: ego_charger_publish_timer_inactive
+            - script.execute: ego_charger_publish_pending_off
+          else:
+            - if:
+                condition:
+                  lambda: "return id(ego_charger_switch_seen) && id(ego_charger_switch).state && id(ego_charger_timer_running) && id(ego_charger_remaining_seconds) <= 0;"
+                then:
+                  - script.execute: ego_charger_expire_timer
+                else:
+                  - if:
+                      condition:
+                        lambda: |-
+                          return id(ego_charger_switch_seen) &&
+                            id(ego_charger_switch).state &&
+                            id(ego_charger_timer_running) &&
+                            (id(ego_charger_timer_active_seen) || id(ego_charger_timer_active).has_state()) &&
+                            (id(ego_charger_timer_end_time_seen) || id(ego_charger_timer_end_time).has_state()) &&
+                            (id(ego_charger_preset_duration_seen) || id(ego_charger_preset_duration).has_state()) &&
+                            (id(ego_charger_panel_pending_off_seen) || id(ego_charger_panel_pending_off).has_state());
+                      then:
+                        - script.execute: ego_charger_publish_timer_active
+      - if:
+          condition:
+            lambda: "return id(ego_charger_switch_seen) && id(ego_charger_switch).state && id(ego_charger_pending_off);"
+          then:
+            - script.execute: ego_charger_retry_pending_off
+
+  - id: ego_charger_tick
+    mode: restart
+    then:
+      - lambda: |-
+          if (!id(ego_charger_timer_running)) {
+            return;
+          }
+          if (id(ha_time).now().is_valid() && id(ego_charger_active_end_epoch) > 0) {
+            id(ego_charger_remaining_seconds) = id(ego_charger_active_end_epoch) - id(ha_time).now().timestamp;
+          } else {
+            id(ego_charger_remaining_seconds) -= 1;
+          }
+      - if:
+          condition:
+            lambda: "return id(ego_charger_timer_running) && id(ego_charger_remaining_seconds) <= 0;"
+          then:
+            - script.execute: ego_charger_expire_timer
+          else:
+            - script.execute: ego_charger_apply_state
+
+  - id: ego_charger_expire_timer
+    mode: restart
+    then:
+      - logger.log: "EGO charger timer expired"
+      - globals.set:
+          id: ego_charger_pending_off
+          value: "true"
+      - globals.set:
+          id: ego_charger_stop_pending
+          value: "true"
+      - globals.set:
+          id: ego_charger_start_pending
+          value: "false"
+      - script.execute: ego_charger_publish_pending_off
+      - if:
+          condition:
+            lambda: "return id(ha_is_connected);"
+          then:
+            # Home Assistant must enable "Allow the device to perform Home Assistant actions"
+            # for this ESPHome device. If disabled, OFF PENDING will remain until
+            # ${ego_charger_switch_entity} confirms OFF.
+            - homeassistant.action:
+                action: switch.turn_off
+                data:
+                  entity_id: ${ego_charger_switch_entity}
+                on_success:
+                  then:
+                    - lambda: |-
+                        id(ego_charger_last_action_result) = "stop action sent";
+                        ESP_LOGI("ego_charger", "HA action switch.turn_off accepted for expired EGO charger timer");
+                    - script.execute: ego_charger_set_last_action_result
+                on_error:
+                  then:
+                    - lambda: |-
+                        id(ego_charger_pending_off) = true;
+                        id(ego_charger_stop_pending) = true;
+                        id(ego_charger_last_action_result) = "stop action failed";
+                        id(ego_charger_feedback_text) = "Stop failed";
+                        id(ego_charger_feedback_until_ms) = millis() + 5000;
+                        ESP_LOGW("ego_charger", "HA action switch.turn_off failed after EGO charger timer expired; keeping pending_off true");
+                    - script.execute: ego_charger_set_last_action_result
+                    - script.execute: ego_charger_publish_pending_off
+                    - script.execute: ego_charger_apply_state
+          else:
+            - logger.log: "Home Assistant unavailable; EGO charger turn-off is pending"
+      - lambda: |-
+          id(ego_charger_timer_running) = false;
+          id(ego_charger_remaining_seconds) = 0;
+          id(ego_charger_total_seconds) = 0;
+          id(ego_charger_active_end_epoch) = 0;
+          id(ego_charger_start_pending_since_ms) = 0;
+          if (id(ego_charger_switch_seen) && !id(ego_charger_switch).state) {
+            id(ego_charger_fsm_state) = 0;
+          } else if (id(ego_charger_fsm_state) == 0) {
+            id(ego_charger_fsm_state) = 1;
+          }
+          id(ego_charger_feedback_text) = "Off pending";
+          id(ego_charger_feedback_until_ms) = 0;
+      - script.execute: ego_charger_publish_timer_inactive
+      - script.execute: ego_charger_apply_state
+
+  - id: ego_charger_retry_pending_off
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: "return id(ego_charger_switch_seen) && !id(ego_charger_switch).state && id(ego_charger_pending_off);"
+          then:
+            - lambda: |-
+                id(ego_charger_pending_off) = false;
+                id(ego_charger_stop_pending) = false;
+                id(ego_charger_start_pending) = false;
+                id(ego_charger_start_pending_since_ms) = 0;
+                id(ego_charger_last_action_result) = "switch confirmed off";
+                ESP_LOGI("ego_charger", "${ego_charger_switch_entity} confirmed OFF");
+            - script.execute: ego_charger_publish_pending_off
+            - script.execute: ego_charger_set_last_action_result
+          else:
+            - if:
+                condition:
+                  lambda: "return id(ha_is_connected) && id(ego_charger_pending_off) && id(ego_charger_switch_seen) && id(ego_charger_switch).state;"
+                then:
+                  - logger.log: "Retrying pending EGO charger turn-off"
+                  # Home Assistant must enable "Allow the device to perform Home Assistant actions"
+                  # for this ESPHome device. If disabled, retries will continue while
+                  # ${ego_charger_switch_entity} remains ON.
+                  - homeassistant.action:
+                      action: switch.turn_off
+                      data:
+                        entity_id: ${ego_charger_switch_entity}
+                      on_success:
+                        then:
+                          - lambda: |-
+                              id(ego_charger_last_action_result) = "stop retry action sent";
+                              ESP_LOGI("ego_charger", "HA action switch.turn_off retry accepted for ${ego_charger_switch_entity}");
+                          - script.execute: ego_charger_set_last_action_result
+                      on_error:
+                        then:
+                          - lambda: |-
+                              id(ego_charger_pending_off) = true;
+                              id(ego_charger_stop_pending) = true;
+                              id(ego_charger_last_action_result) = "stop retry action failed";
+                              ESP_LOGW("ego_charger", "HA action switch.turn_off retry failed for ${ego_charger_switch_entity}; keeping pending_off true");
+                          - script.execute: ego_charger_set_last_action_result
+                          - script.execute: ego_charger_apply_state
+
+  - id: ego_charger_start_timer
+    mode: restart
+    then:
+      - logger.log: "Starting EGO charger timer from panel"
+      - script.execute: ego_charger_wake_screen
+      - if:
+          condition:
+            lambda: "return id(ha_is_connected);"
+          then:
+            - lambda: |-
+                id(ego_charger_start_pending) = true;
+                id(ego_charger_start_pending_since_ms) = millis();
+                id(ego_charger_stop_pending) = false;
+                id(ego_charger_pending_off) = false;
+                id(ego_charger_timer_running) = false;
+                id(ego_charger_remaining_seconds) = 0;
+                id(ego_charger_total_seconds) = 0;
+                id(ego_charger_active_end_epoch) = 0;
+                id(ego_charger_fsm_state) = 1;
+                id(ego_charger_feedback_text) = "Starting";
+                id(ego_charger_feedback_until_ms) = 0;
+                id(ego_charger_last_action_result) = "start requested";
+            - script.execute: ego_charger_set_last_action_result
+            - script.execute: ego_charger_publish_pending_off
+            # Home Assistant must enable "Allow the device to perform Home Assistant actions"
+            # for this ESPHome device. If disabled, the panel may show STARTING but
+            # ${ego_charger_switch_entity} will not turn on.
+            - homeassistant.action:
+                action: switch.turn_on
+                data:
+                  entity_id: ${ego_charger_switch_entity}
+                on_success:
+                  then:
+                    - lambda: |-
+                        id(ego_charger_last_action_result) = "start action sent";
+                        ESP_LOGI("ego_charger", "HA action switch.turn_on accepted for ${ego_charger_switch_entity}; waiting for imported switch state to confirm ON");
+                    - script.execute: ego_charger_set_last_action_result
+                on_error:
+                  then:
+                    - lambda: |-
+                        id(ego_charger_start_pending) = false;
+                        id(ego_charger_start_pending_since_ms) = 0;
+                        id(ego_charger_timer_running) = false;
+                        id(ego_charger_remaining_seconds) = 0;
+                        id(ego_charger_total_seconds) = 0;
+                        id(ego_charger_active_end_epoch) = 0;
+                        id(ego_charger_fsm_state) = 0;
+                        id(ego_charger_feedback_text) = "Start failed";
+                        id(ego_charger_feedback_until_ms) = millis() + 5000;
+                        id(ego_charger_last_action_result) = "start action failed";
+                        ESP_LOGW("ego_charger", "HA action switch.turn_on failed for ${ego_charger_switch_entity}; check HA action permission and switch entity");
+                    - script.execute: ego_charger_set_last_action_result
+                    - script.execute: ego_charger_publish_timer_inactive
+                    - script.execute: ego_charger_apply_state
+            - script.execute: ego_charger_apply_state
+            - script.execute: ego_charger_schedule_resync
+          else:
+            - logger.log: "Home Assistant unavailable; cannot start EGO charger"
+            - lambda: |-
+                id(ego_charger_start_pending) = false;
+                id(ego_charger_start_pending_since_ms) = 0;
+                id(ego_charger_timer_running) = false;
+                id(ego_charger_remaining_seconds) = 0;
+                id(ego_charger_total_seconds) = 0;
+                id(ego_charger_active_end_epoch) = 0;
+                id(ego_charger_fsm_state) = 0;
+                id(ego_charger_feedback_text) = "HA unavailable";
+                id(ego_charger_feedback_until_ms) = millis() + 5000;
+                id(ego_charger_last_action_result) = "start unavailable";
+            - script.execute: ego_charger_set_last_action_result
+            - script.execute: ego_charger_apply_state
+
+  - id: ego_charger_stop_timer
+    mode: restart
+    then:
+      - logger.log: "Stopping EGO charger timer from panel"
+      - script.execute: ego_charger_wake_screen
+      - if:
+          condition:
+            lambda: "return id(ha_is_connected);"
+          then:
+            - globals.set:
+                id: ego_charger_pending_off
+                value: "true"
+            - globals.set:
+                id: ego_charger_stop_pending
+                value: "true"
+            - globals.set:
+                id: ego_charger_start_pending
+                value: "false"
+            - script.execute: ego_charger_publish_pending_off
+            # Home Assistant must enable "Allow the device to perform Home Assistant actions"
+            # for this ESPHome device. If disabled, OFF PENDING will remain until
+            # ${ego_charger_switch_entity} confirms OFF.
+            - homeassistant.action:
+                action: switch.turn_off
+                data:
+                  entity_id: ${ego_charger_switch_entity}
+                on_success:
+                  then:
+                    - lambda: |-
+                        id(ego_charger_last_action_result) = "stop action sent";
+                        ESP_LOGI("ego_charger", "HA action switch.turn_off accepted for ${ego_charger_switch_entity}; waiting for imported switch state to confirm OFF");
+                    - script.execute: ego_charger_set_last_action_result
+                on_error:
+                  then:
+                    - lambda: |-
+                        id(ego_charger_pending_off) = true;
+                        id(ego_charger_stop_pending) = true;
+                        id(ego_charger_last_action_result) = "stop action failed";
+                        id(ego_charger_feedback_text) = "Stop failed";
+                        id(ego_charger_feedback_until_ms) = millis() + 5000;
+                        ESP_LOGW("ego_charger", "HA action switch.turn_off failed for ${ego_charger_switch_entity}; keeping pending_off true");
+                    - script.execute: ego_charger_set_last_action_result
+                    - script.execute: ego_charger_publish_pending_off
+                    - script.execute: ego_charger_apply_state
+            - lambda: |-
+                id(ego_charger_timer_running) = false;
+                id(ego_charger_remaining_seconds) = 0;
+                id(ego_charger_total_seconds) = 0;
+                id(ego_charger_active_end_epoch) = 0;
+                id(ego_charger_start_pending_since_ms) = 0;
+                if (id(ego_charger_switch_seen) && !id(ego_charger_switch).state) {
+                  id(ego_charger_fsm_state) = 0;
+                } else if (id(ego_charger_fsm_state) == 0) {
+                  id(ego_charger_fsm_state) = 1;
+                }
+                id(ego_charger_feedback_text) = "Off pending";
+                id(ego_charger_feedback_until_ms) = 0;
+            - script.execute: ego_charger_publish_timer_inactive
+            - script.execute: ego_charger_apply_state
+            - script.execute: ego_charger_schedule_resync
+          else:
+            - globals.set:
+                id: ego_charger_pending_off
+                value: "true"
+            - globals.set:
+                id: ego_charger_stop_pending
+                value: "true"
+            - globals.set:
+                id: ego_charger_start_pending
+                value: "false"
+            - lambda: |-
+                id(ego_charger_start_pending_since_ms) = 0;
+                id(ego_charger_timer_running) = false;
+                id(ego_charger_remaining_seconds) = 0;
+                id(ego_charger_total_seconds) = 0;
+                id(ego_charger_active_end_epoch) = 0;
+                if (id(ego_charger_fsm_state) == 0) {
+                  id(ego_charger_fsm_state) = 1;
+                }
+                id(ego_charger_feedback_text) = "Off pending";
+                id(ego_charger_feedback_until_ms) = 0;
+                id(ego_charger_last_action_result) = "stop pending without HA";
+            - script.execute: ego_charger_apply_state
+            - script.execute: ego_charger_set_last_action_result
+
+  - id: ego_charger_screen_press
+    mode: restart
+    then:
+      - logger.log:
+          format: "EGO charger primary press source=%s"
+          args: [id(ego_charger_press_source).c_str()]
+      - script.execute: ego_charger_update_effective_state
+      - lambda: |-
+          const bool switch_state = id(ego_charger_switch_seen) ? id(ego_charger_switch).state : false;
+          const bool timer_active_state = id(ego_charger_timer_active_seen) ? id(ego_charger_timer_active).state : false;
+          const bool locally_known_on =
+            id(ego_charger_timer_running) ||
+            id(ego_charger_fsm_state) != 0 ||
+            (id(ego_charger_switch_seen) && id(ego_charger_switch).state);
+          const uint32_t now_ms = millis();
+          std::string action;
+          if (id(ego_screen_blanked)) {
+            action = "wake";
+          } else if (id(ego_charger_last_screen_press_ms) != 0 &&
+                     now_ms - id(ego_charger_last_screen_press_ms) < 400UL) {
+            action = "ignored_debounce";
+          } else if (id(ego_charger_effective_state) == "STARTING") {
+            action = "ignored_starting";
+          } else if (id(ego_charger_effective_state) == "OFF_PENDING") {
+            action = "ignored_off_pending";
+          } else if (id(ego_charger_effective_state) == "SYNCING") {
+            action = "ignored_syncing";
+          } else if (id(ego_charger_effective_state) == "HA_UNAVAILABLE") {
+            action = locally_known_on ? "stop" : "ignored_ha_unavailable";
+          } else if (id(ego_charger_effective_state) == "OFF") {
+            action = "start";
+          } else if ((id(ego_charger_effective_state) == "START_FAILED" ||
+                      id(ego_charger_effective_state) == "START_TIMEOUT") &&
+                     id(ego_charger_switch_seen) &&
+                     !id(ego_charger_switch).state) {
+            action = "start";
+          } else if (id(ego_charger_effective_state) == "START_FAILED" ||
+                     id(ego_charger_effective_state) == "START_TIMEOUT") {
+            action = "ignored_syncing";
+          } else if (id(ego_charger_effective_state) == "ON" ||
+                     id(ego_charger_effective_state) == "CHARGING") {
+            action = "stop";
+          } else {
+            action = "ignored_unknown";
+          }
+          ESP_LOGI(
+            "ego_charger",
+            "screen press decision: source=%s fsm_state=%d start_pending=%d stop_pending=%d pending_off=%d timer_running=%d switch_seen=%d switch_state=%d timer_active_seen=%d timer_active_state=%d remaining=%d last_action=%s effective_state=%s action=%s",
+            id(ego_charger_press_source).c_str(),
+            id(ego_charger_fsm_state),
+            id(ego_charger_start_pending),
+            id(ego_charger_stop_pending),
+            id(ego_charger_pending_off),
+            id(ego_charger_timer_running),
+            id(ego_charger_switch_seen),
+            switch_state,
+            id(ego_charger_timer_active_seen),
+            timer_active_state,
+            id(ego_charger_remaining_seconds),
+            id(ego_charger_last_action_result).c_str(),
+            id(ego_charger_effective_state).c_str(),
+            action.c_str()
+          );
+          if (action == "ignored_debounce") {
+            ESP_LOGW("ego_charger", "screen press ignored due to debounce");
+          } else if (action == "ignored_syncing") {
+            id(ego_charger_feedback_text) = "Waiting for HA state";
+            id(ego_charger_feedback_until_ms) = millis() + 2500;
+          } else if (action == "ignored_starting") {
+            id(ego_charger_feedback_text) = "Starting";
+            id(ego_charger_feedback_until_ms) = millis() + 2500;
+          } else if (action == "ignored_off_pending") {
+            id(ego_charger_feedback_text) = "Retrying off";
+            id(ego_charger_feedback_until_ms) = millis() + 2500;
+          } else if (action == "ignored_ha_unavailable") {
+            id(ego_charger_feedback_text) = "HA unavailable";
+            id(ego_charger_feedback_until_ms) = millis() + 2500;
+          }
+          if (action != "ignored_debounce") {
+            id(ego_charger_last_screen_press_ms) = now_ms;
+          }
+          id(ego_charger_screen_press_action) = action;
+          id(ego_charger_last_action_result) = id(ego_charger_press_source) + " press " + action;
+      - script.execute: ego_charger_set_last_action_result
+      - if:
+          condition:
+            lambda: "return id(ego_screen_blanked);"
+          then:
+            - script.execute: ego_charger_wake_screen
+          else:
+            - if:
+                condition:
+                  lambda: "return id(ego_charger_screen_press_action) == \"start\";"
+                then:
+                  - script.execute: ego_charger_start_timer
+                else:
+                  - if:
+                      condition:
+                        lambda: "return id(ego_charger_screen_press_action) == \"stop\";"
+                      then:
+                        - script.execute: ego_charger_stop_timer
+                      else:
+                        - script.execute: ego_charger_apply_state
+
+  - id: ego_charger_ring_adjust
+    mode: restart
+    then:
+      - script.execute: ego_charger_wake_screen
+      - lambda: |-
+          const int max_minutes = atoi("${ego_charger_max_timer_minutes}");
+          const int delta = id(ego_ring_delta);
+          int current_minutes = id(ego_charger_timer_running)
+            ? max(1, (id(ego_charger_remaining_seconds) + 59) / 60)
+            : id(ego_charger_preset_minutes);
+          const int step = current_minutes < 10 ? 1 : 5;
+          int next_minutes = current_minutes + ((delta > 0) ? step : -step);
+          if (delta > 0 && current_minutes == 10) {
+            next_minutes = 15;
+          }
+          if (delta < 0 && current_minutes == 15) {
+            next_minutes = 10;
+          }
+          next_minutes = max(1, min(max_minutes, next_minutes));
+          if ((delta < 0 && next_minutes == 1 && current_minutes == 1) ||
+              (delta > 0 && next_minutes == max_minutes && current_minutes == max_minutes)) {
+            if (next_minutes == 1) {
+              id(ego_charger_feedback_text) = id(ego_charger_timer_running)
+                ? "Minimum is 1 min"
+                : "Minimum preset is 1 min";
+            } else {
+              char feedback[32];
+              snprintf(feedback, sizeof(feedback), "Maximum is %d min", max_minutes);
+              id(ego_charger_feedback_text) = feedback;
+            }
+            id(ego_charger_feedback_until_ms) = millis() + 2500;
+          } else {
+            id(ego_charger_feedback_until_ms) = 0;
+            id(ego_charger_feedback_text).clear();
+          }
+          if (id(ego_charger_timer_running)) {
+            id(ego_charger_remaining_seconds) = next_minutes * 60;
+            id(ego_charger_total_seconds) = id(ego_charger_remaining_seconds);
+            if (id(ha_time).now().is_valid()) {
+              id(ego_charger_active_end_epoch) = id(ha_time).now().timestamp + id(ego_charger_remaining_seconds);
+            }
+          } else {
+            id(ego_charger_preset_minutes) = next_minutes;
+          }
+      - script.execute: ego_charger_apply_state
+      - if:
+          condition:
+            lambda: "return id(ego_charger_timer_running);"
+          then:
+            - script.execute: ego_charger_publish_timer_active
+          else:
+            - script.execute: ego_charger_publish_preset
+
+
+
+spi:
+  id: spi_bus
+  clk_pin: GPIO10
+  mosi_pin: GPIO11
+
+i2c:
+  id: i2c_touch
+  sda: GPIO6
+  scl: GPIO7
+  scan: true
+  frequency: 400kHz
+  setup_priority: 400
+
+output:
+  - platform: ledc
+    id: screen_backlight_pwm
+    frequency: 5000Hz
+    pin:
+      number: GPIO46
+      ignore_strapping_warning: true
+  - platform: gpio
+    id: power_light
+    pin: GPIO40
+  - platform: gpio
+    id: out1_enable
+    pin: GPIO1
+  - platform: gpio
+    id: out2_enable
+    pin: GPIO2
+
+light:
+  - platform: esp32_rmt_led_strip
+    id: ambient_leds
+    name: Ambient LEDs
+    internal: true
+    pin: GPIO48
+    num_leds: 5
+    chipset: WS2812
+    rgb_order: GRB
+    restore_mode: ALWAYS_OFF
+    default_transition_length: 0s
+    use_psram: false
+    effects:
+      - addressable_rainbow:
+          name: "Charging Rainbow"
+          speed: 4
+          width: 5
+      - addressable_lambda:
+          name: "Off Red Breathe Blanked"
+          update_interval: 40ms
+          lambda: |-
+            const uint32_t period_ms = (uint32_t) atoi("${ego_charger_off_led_blanked_pulse_period_ms}");
+            const uint32_t safe_period_ms = period_ms > 0 ? period_ms : 1000UL;
+            const uint32_t position_ms = millis() % safe_period_ms;
+            const float half_period = safe_period_ms / 2.0f;
+            const float phase = position_ms < half_period
+              ? position_ms / half_period
+              : (safe_period_ms - position_ms) / half_period;
+            const float min_red = atoi("${ego_charger_off_led_blanked_pulse_min}") / 100.0f;
+            const float max_red = atoi("${ego_charger_off_led_blanked_pulse_max}") / 100.0f;
+            const float red_level = min_red + ((max_red - min_red) * phase);
+            const uint8_t red = (uint8_t) ((255.0f * red_level) + 0.5f);
+            for (int i = 0; i < it.size(); i++) {
+              it[i] = Color(red, 0, 0);
+            }
+
+touchscreen:
+  - platform: cst816
+    id: round_touch
+    i2c_id: i2c_touch
+    address: 0x15
+    interrupt_pin: GPIO5
+    reset_pin: GPIO13
+    transform:
+      mirror_x: false
+      mirror_y: true
+      swap_xy: true
+    on_touch:
+      then:
+        - logger.log:
+            format: "Touch transformed x=%d y=%d raw_x=%d raw_y=%d"
+            args: [touch.x, touch.y, touch.x_raw, touch.y_raw]
+
+display:
+  - platform: mipi_spi
+    id: round_display
+    model: GC9A01A
+    cs_pin: GPIO9
+    dc_pin:
+      number: GPIO3
+      ignore_strapping_warning: true
+    reset_pin: GPIO14
+    dimensions:
+      width: 240
+      height: 240
+    invert_colors: true
+    data_rate: 20MHz
+    update_interval: never
+    auto_clear_enabled: false
+
+lvgl:
+  displays:
+    - round_display
+  touchscreens:
+    - round_touch
+  bg_color: 0x101820
+  pages:
+    - id: main_page
+      bg_color: 0x240A0A
+      pad_all: 0
+      scrollable: false
+      widgets:
+        - label:
+            id: ego_off_state_label
+            text: "OFF"
+            align: top_mid
+            y: 22
+            width: 180
+            text_align: center
+            text_color: 0xFFD166
+            text_font: montserrat_20
+        - label:
+            id: ego_state_label
+            text: "OFF"
+            align: top_mid
+            y: 18
+            width: 180
+            hidden: true
+            text_align: center
+            text_color: 0xFFD166
+            text_font: montserrat_14
+        - label:
+            text: "\uF1EB"
+            id: lbl_hastatus
+            hidden: true
+            align: top_right
+            x: -2
+            y: 7
+            text_align: right
+            text_color: 0xFFFFFF
+        - arc:
+            id: ego_timer_arc
+            align: center
+            width: 136
+            height: 136
+            min_value: 1
+            max_value: 100
+            value: 100
+            hidden: true
+            adjustable: false
+            start_angle: 135
+            end_angle: 45
+            bg_opa: TRANSP
+            arc_width: 9
+            arc_color: 0x263238
+            indicator:
+              arc_color: 0x00D6FF
+              arc_width: 9
+            knob:
+              bg_opa: TRANSP
+        - arc:
+            id: ego_timer_arc_accent
+            align: center
+            width: 154
+            height: 154
+            min_value: 1
+            max_value: 100
+            value: 100
+            hidden: true
+            adjustable: false
+            start_angle: 150
+            end_angle: 30
+            bg_opa: TRANSP
+            arc_width: 4
+            arc_color: 0x263238
+            indicator:
+              arc_color: 0x19D27C
+              arc_width: 4
+            knob:
+              bg_opa: TRANSP
+        - label:
+            id: ego_time_label
+            text: "10 min"
+            align: center
+            y: -2
+            text_color: 0xF7FFF7
+            text_font: montserrat_28
+        - label:
+            id: ego_power_label
+            text: "-- W"
+            align: center
+            y: 34
+            hidden: true
+            text_color: 0x9BE7FF
+            text_font: montserrat_18
+        - label:
+            id: ego_hint_label
+            text: "Rotate to set"
+            align: bottom_mid
+            y: -58
+            width: 170
+            text_align: center
+            text_color: 0xB8F2E6
+            text_font: montserrat_16
+        - label:
+            id: ego_action_label
+            text: "Tap to start"
+            align: bottom_mid
+            y: -36
+            width: 170
+            text_align: center
+            text_color: 0xFFD166
+            text_font: montserrat_16
+        - button:
+            id: ego_touch_target
+            align: center
+            width: 240
+            height: 240
+            radius: 120
+            bg_opa: TRANSP
+            border_opa: TRANSP
+            shadow_opa: TRANSP
+            pad_all: 0
+            on_click:
+              then:
+                - logger.log: "EGO charger LVGL touch target clicked"
+                - globals.set:
+                    id: ego_charger_press_source
+                    value: '"touch"'
+                - script.execute: ego_charger_screen_press
+
+sensor:
+  - platform: rotary_encoder
+    id: knob_encoder
+    name: Rotary Encoder
+    internal: true
+    pin_a:
+      number: GPIO45
+      mode:
+        input: true
+        pullup: true
+      ignore_strapping_warning: true
+    pin_b:
+      number: GPIO42
+      mode:
+        input: true
+        pullup: true
+    resolution: 1
+    on_clockwise:
+      then:
+        - logger.log: "Rotary encoder clockwise"
+        - lambda: "id(ego_ring_delta) = 1;"
+        - script.execute: ego_charger_ring_adjust
+    on_anticlockwise:
+      then:
+        - logger.log: "Rotary encoder anticlockwise"
+        - lambda: "id(ego_ring_delta) = -1;"
+        - script.execute: ego_charger_ring_adjust
+  - platform: homeassistant
+    id: ego_charger_power
+    entity_id: ${ego_charger_power_entity}
+    internal: true
+    on_value:
+      then:
+        - script.execute: ego_charger_update_screen
+        - script.execute: ego_charger_update_charging_detector
+  - platform: homeassistant
+    id: ego_charger_preset_duration
+    entity_id: ${ego_charger_preset_duration_entity}
+    internal: true
+    on_value:
+      then:
+        - lambda: "id(ego_charger_preset_duration_seen) = true;"
+        - script.execute: ego_charger_schedule_resync
+  - platform: wifi_signal
+    id: wifi_signal_db
+    name: WiFi Signal
+    update_interval: 60s
+    entity_category: diagnostic
+    unit_of_measurement: "dBm"
+    device_class: signal_strength
+  - platform: copy
+    id: wifi_signal_strength
+    name: WiFi Strength Percent
+    source_id: wifi_signal_db
+    filters:
+      - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);
+    unit_of_measurement: "%"
+    device_class: ""
+    entity_category: diagnostic
+
+text_sensor:
+  - platform: template
+    id: ego_charger_action_result
+    name: EGO Charger Action Result
+    entity_category: diagnostic
+    icon: mdi:message-alert-outline
+    update_interval: never
+  - platform: template
+    id: ego_charger_effective_state_sensor
+    name: EGO Charger Effective State
+    entity_category: diagnostic
+    icon: mdi:state-machine
+    update_interval: never
+  - platform: homeassistant
+    id: ego_charger_timer_end_time
+    entity_id: ${ego_charger_timer_end_time_entity}
+    internal: true
+    on_value:
+      then:
+        - lambda: "id(ego_charger_timer_end_time_seen) = true;"
+        - script.execute: ego_charger_schedule_resync
+  - platform: wifi_info
+    ip_address:
+      name: IP Address
+      entity_category: diagnostic
+    ssid:
+      name: Connected SSID
+      entity_category: diagnostic
+    mac_address:
+      name: Mac Address
+      entity_category: diagnostic
+
+button:
+  - platform: restart
+    name: Reboot
+    entity_category: diagnostic
+  - platform: template
+    name: EGO Charger Test Tap
+    entity_category: diagnostic
+    icon: mdi:gesture-tap
+    on_press:
+      then:
+        - logger.log: "EGO charger test tap requested from Home Assistant"
+        - globals.set:
+            id: ego_charger_press_source
+            value: '"test"'
+        - script.execute: ego_charger_screen_press
+  - platform: template
+    name: EGO Charger Test Ring Clockwise
+    entity_category: diagnostic
+    icon: mdi:rotate-right
+    on_press:
+      then:
+        - logger.log: "EGO charger test clockwise ring rotation requested from Home Assistant"
+        - lambda: "id(ego_ring_delta) = 1;"
+        - script.execute: ego_charger_ring_adjust
+  - platform: template
+    name: EGO Charger Test Ring Counterclockwise
+    entity_category: diagnostic
+    icon: mdi:rotate-left
+    on_press:
+      then:
+        - logger.log: "EGO charger test counterclockwise ring rotation requested from Home Assistant"
+        - lambda: "id(ego_ring_delta) = -1;"
+        - script.execute: ego_charger_ring_adjust
+
+binary_sensor:
+  - platform: homeassistant
+    id: ego_charger_timer_active
+    entity_id: ${ego_charger_timer_active_entity}
+    internal: true
+    on_state:
+      then:
+        - lambda: "id(ego_charger_timer_active_seen) = true;"
+        - script.execute: ego_charger_schedule_resync
+  - platform: homeassistant
+    id: ego_charger_panel_pending_off
+    entity_id: ${ego_charger_panel_pending_off_entity}
+    internal: true
+    on_state:
+      then:
+        - lambda: "id(ego_charger_panel_pending_off_seen) = true;"
+        - script.execute: ego_charger_schedule_resync
+  - platform: template
+    id: ego_charger_charging_detected
+    internal: true
+    lambda: |-
+      if (!id(ego_charger_timer_running) || !id(ego_charger_switch).state || isnan(id(ego_charger_power).state)) {
+        return false;
+      }
+      if (id(ego_charger_fsm_state) == 2) {
+        return id(ego_charger_power).state >= atof("${ego_charger_charging_exit_threshold_watts}");
+      }
+      return id(ego_charger_power).state > atof("${ego_charger_charging_enter_threshold_watts}");
+    filters:
+      - delayed_on: ${ego_charger_charging_power_stable_seconds}s
+      - delayed_off: ${ego_charger_charging_power_stable_seconds}s
+    on_press:
+      then:
+        - lambda: "id(ego_charger_fsm_state) = 2;"
+        - script.execute: ego_charger_apply_state
+    on_release:
+      then:
+        - lambda: |-
+            if (id(ego_charger_timer_running)) {
+              id(ego_charger_fsm_state) = 1;
+            }
+        - script.execute: ego_charger_apply_state
+  - platform: gpio
+    id: knob_button
+    name: Knob Button
+    internal: true
+    pin:
+      number: GPIO41
+      mode:
+        input: true
+        pullup: true
+      inverted: true
+    filters:
+      - delayed_on: 20ms
+      - delayed_off: 20ms
+    on_press:
+      then:
+        - logger.log: "Knob button pressed"
+        - globals.set:
+            id: ego_charger_press_source
+            value: '"button"'
+        - script.execute: ego_charger_screen_press
+    on_release:
+      then:
+        - logger.log: "Knob button released"
+
+switch:
+  - platform: homeassistant
+    id: ego_charger_switch
+    entity_id: ${ego_charger_switch_entity}
+    internal: true
+    on_turn_on:
+      then:
+        - lambda: |-
+            const bool panel_start_confirmed = id(ego_charger_start_pending);
+            id(ego_charger_switch_seen) = true;
+            id(ego_charger_start_pending) = false;
+            id(ego_charger_start_pending_since_ms) = 0;
+            if (id(ego_charger_switch_on_since_ms) == 0) {
+              id(ego_charger_switch_on_since_ms) = millis();
+            }
+            id(ego_charger_last_action_result) = "switch confirmed on";
+            ESP_LOGI("ego_charger", "${ego_charger_switch_entity} confirmed ON");
+            if (id(ego_charger_fsm_state) == 0) {
+              id(ego_charger_fsm_state) = 1;
+            }
+            if (panel_start_confirmed && !id(ego_charger_timer_running)) {
+              int preset = id(ego_charger_preset_minutes);
+              if (preset < 1 || preset > atoi("${ego_charger_max_timer_minutes}")) {
+                preset = atoi("${ego_charger_default_timer_minutes}");
+                preset = max(1, min(atoi("${ego_charger_max_timer_minutes}"), preset));
+                id(ego_charger_preset_minutes) = preset;
+              }
+              id(ego_charger_timer_running) = true;
+              id(ego_charger_remaining_seconds) = preset * 60;
+              id(ego_charger_total_seconds) = id(ego_charger_remaining_seconds);
+              if (id(ha_time).now().is_valid()) {
+                id(ego_charger_active_end_epoch) = id(ha_time).now().timestamp + id(ego_charger_remaining_seconds);
+              } else {
+                id(ego_charger_active_end_epoch) = 0;
+              }
+              ESP_LOGI("ego_charger", "${ego_charger_switch_entity} confirmed panel start; local protective timer started for %d minutes", preset);
+            }
+        - script.execute: ego_charger_set_last_action_result
+        - script.execute: ego_charger_update_charging_detector
+        - script.execute: ego_charger_apply_state
+        - if:
+            condition:
+              lambda: "return id(ego_charger_timer_running);"
+            then:
+              - script.execute: ego_charger_publish_timer_active
+        - script.execute: ego_charger_schedule_resync
+    on_turn_off:
+      then:
+        - lambda: |-
+            id(ego_charger_switch_seen) = true;
+            id(ego_charger_timer_running) = false;
+            id(ego_charger_remaining_seconds) = 0;
+            id(ego_charger_total_seconds) = 0;
+            id(ego_charger_active_end_epoch) = 0;
+            id(ego_charger_fsm_state) = 0;
+            id(ego_charger_start_pending) = false;
+            id(ego_charger_start_pending_since_ms) = 0;
+            id(ego_charger_switch_on_since_ms) = 0;
+            id(ego_charger_stop_pending) = false;
+            id(ego_charger_pending_off) = false;
+            id(ego_charger_last_action_result) = "switch confirmed off";
+            ESP_LOGI("ego_charger", "${ego_charger_switch_entity} confirmed OFF");
+        - script.execute: ego_charger_apply_state
+        - script.execute: ego_charger_set_last_action_result
+        - script.execute: ego_charger_publish_timer_inactive
+        - script.execute: ego_charger_publish_pending_off
+        - script.execute: ego_charger_schedule_resync

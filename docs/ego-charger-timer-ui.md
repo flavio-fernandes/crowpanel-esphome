@@ -65,12 +65,42 @@ CHARGING
 
 ```text
 ring rotation
-screen push button
+display tap
+physical click
 external switch.ego_charger changes from Home Assistant
 sensor.ego_charger_power updates from Home Assistant
 Home Assistant API availability changes
 boot / reconnect / resync events
 ```
+
+### Primary Action Inputs
+
+The CrowPanel has two user inputs that invoke the same primary charger action.
+
+- `Tap` means a light touch on the round display.
+- `Physical click` means pressing harder on the screen/knob assembly until the
+  built-in button clicks.
+
+For the EGO charger UI, both inputs are equivalent:
+
+```text
+OFF -> start timer
+ON / CHARGING -> stop timer
+screen blanked -> wake only
+STARTING / OFF_PENDING / SYNCING / HA_UNAVAILABLE / failed states -> follow the effective-state decision rules
+```
+
+The implementation must route both inputs through the same effective-state
+decision path. A physical user action must not be processed twice, even if the
+hardware generates both a touch event and a button event close together.
+
+Do not rely on LVGL `enter_button` for this primary action. ESPHome LVGL
+`enter_button` is intended for LVGL focus and navigation behavior; pressing the
+encoder can click the currently focused LVGL object, which is harder to reason
+about and can vary with focus state. For this UI, the GPIO button press should
+explicitly invoke the same primary-action script as the display tap. Keep the
+rotary encoder wired only for rotation input unless future rotary focus
+navigation truly requires otherwise.
 
 ### Outputs
 
@@ -168,8 +198,10 @@ substitutions:
   ego_charger_charging_exit_threshold_watts: "15"
   ego_charger_charging_power_stable_seconds: "10"
 
-  ego_charger_off_led_blink_minutes: "10"
-  ego_charger_off_led_dim_after_minutes: "60"
+  ego_charger_off_led_visible_brightness: "35%"
+  ego_charger_off_led_blanked_pulse_min: "15"
+  ego_charger_off_led_blanked_pulse_max: "35"
+  ego_charger_off_led_blanked_pulse_period_ms: "5000"
   ego_charger_off_screen_blank_minutes: "60"
 ```
 
@@ -195,6 +227,11 @@ Exit CHARGING:
   sensor.ego_charger_power < charging_exit_threshold_watts
   condition remains true for charging_power_stable_seconds
 ```
+
+The stable timer should begin as soon as `sensor.ego_charger_power` publishes a
+new value. In ESPHome, force the charging detector to re-evaluate from the power
+sensor callback instead of waiting for a generic polling interval. This keeps
+the hysteresis rule intact while making LEDs and the FSM feel responsive.
 
 Initial values:
 
@@ -301,18 +338,18 @@ maximum and show brief feedback:
 Maximum is 180 min
 ```
 
-## Screen Button Behavior
+## Primary Action Behavior
 
 ### OFF + Screen Blanked
 
-A screen press wakes the screen only.
+A tap or physical click wakes the screen only.
 
 It should not start the charger on the first press if the screen was blanked.
 This avoids surprise activation.
 
 ### OFF + Screen Visible
 
-A screen press starts the charger timer.
+A tap or physical click starts the charger timer.
 
 ```text
 active_timer_end_time = now + preset_duration_minutes
@@ -321,12 +358,35 @@ switch.ego_charger -> on
 FSM -> ON once switch state confirms on, or pending ON while awaiting confirmation
 ```
 
+On the CrowPanel implementation, the tap action should be wired through an LVGL
+click target that covers the round display. The physical click should be wired
+from `knob_button.on_press` directly to the same common primary-action script.
+Both paths should set a source marker such as `touch`, `button`, or `test`
+before entering the common decision path so logs can show which input arrived.
+The raw touchscreen callback may still log coordinates for diagnostics, but it
+should not also run the start/stop action. This avoids missed clicks when LVGL
+owns the input device and avoids double-processing one physical action.
+
+The ESPHome implementation should command Home Assistant with explicit
+`switch.turn_on` / `switch.turn_off` service calls for `switch.ego_charger`.
+The imported Home Assistant switch state is the confirmation and resync source;
+it should not be the only command path. This avoids a panel tap appearing to do
+nothing when the local mirrored switch object does not forward control as the
+user expects.
+
+Home Assistant must explicitly trust/allow the CrowPanel ESPHome device to make
+Home Assistant service/action calls. In the ESPHome integration device settings,
+enable the option that permits Home Assistant actions/service calls from the
+DUT. Without that trust setting, screen taps may run locally on the panel but HA
+will reject or ignore the `switch.turn_on` / `switch.turn_off` request for
+`switch.ego_charger`.
+
 If the preset duration is missing, invalid, or less than 1 minute, reset it to
 `ego_charger_default_timer_minutes` before starting.
 
 ### ON or CHARGING
 
-A screen press turns the charger off immediately.
+A tap or physical click turns the charger off immediately.
 
 ```text
 switch.ego_charger -> off
@@ -384,6 +444,14 @@ else:
 This prevents the charger from being left on indefinitely after a manual or
 external activation.
 
+When `switch.ego_charger` confirms `on` after a panel-initiated start, start the
+local protective timer immediately from the current preset. Do not wait for all
+Home Assistant helper entities to arrive before the countdown begins.
+
+If `switch.ego_charger` is `on` and the helper import is still incomplete after
+15 to 30 seconds, start a protective local timer using the current preset or
+`ego_charger_default_timer_minutes`.
+
 ### External Switch Turns OFF While ON or CHARGING
 
 If Home Assistant reports `switch.ego_charger == off` while the timer is active:
@@ -394,6 +462,10 @@ set timer_active = false
 preserve preset_duration_minutes
 clear pending_off if set
 ```
+
+`pending_off` is sticky while `switch.ego_charger` is `on`. Do not overwrite a
+local `pending_off = true` with a stale Home Assistant helper value of `false`.
+Only clear `pending_off` when `switch.ego_charger` confirms `off`.
 
 ### Command Echoes
 
@@ -469,6 +541,15 @@ Cannot start charger
 
 Keep the local countdown running.
 
+If Home Assistant becomes unavailable while the charger is locally known to be
+on or the timer is running, keep showing the local active or pending state with
+a warning instead of replacing the active screen with a generic offline state.
+
+If the user taps or physically clicks while Home Assistant is unavailable and
+the charger is locally known to be on, set local `pending_off = true` and show
+`OFF_PENDING`. The panel should retry the actual `switch.turn_off` action when
+Home Assistant reconnects.
+
 If the timer expires while HA is unavailable:
 
 ```text
@@ -485,28 +566,28 @@ screen blanking.
 
 ### OFF
 
-LEDs use red behavior.
+LEDs use red-only behavior.
 
 ```text
-0 to off_led_blink_minutes:
-  red blinking
+OFF with screen visible:
+  solid red at off_led_visible_brightness
 
-off_led_blink_minutes to off_led_dim_after_minutes:
-  red pulsing
-
-after off_led_dim_after_minutes:
-  dim red pulsing
+OFF with screen blanked:
+  red breathing/pulsing from 15% to 80% red intensity once per second
 ```
 
 Initial values:
 
 ```text
-blink for first 10 minutes
-pulse until 60 minutes
-dim pulse after 60 minutes
+visible OFF brightness: 35%
+blanked OFF pulse: 15% -> 35% -> 15% every 5 seconds
 ```
 
 Screen blanking does not disable the LEDs.
+Once the OFF screen is blanked, the RGB LEDs should continue with a gentle
+red-only breathing pulse so the device still communicates that the charger is
+safely off without looking like an active charging animation or lighting the
+display.
 
 ### ON
 
@@ -518,6 +599,53 @@ LEDs use a rainbow animation.
 
 The rainbow animation should be pleasant and not frantic. It should imply
 active charging without becoming visually annoying.
+
+When leaving `CHARGING`, explicitly stop the active LED effect before applying
+the `ON` or `OFF` LED color. Relying on a solid-color update to replace an
+addressable effect can leave the rainbow running on some ESPHome light
+implementations.
+
+## Minimal Active Screen Layout
+
+The first active LVGL screen should avoid placing status or action labels on top
+of the countdown arc. The acceptable minimal active layout is:
+
+```text
+small state label near the top: ON or CHARGING
+thin colored countdown arc centered in the screen
+large remaining-time label centered inside the arc
+power label below the remaining time
+one short action label below the arc: Tap to stop
+```
+
+Do not reuse the two-line OFF hint block on active screens if it collides with
+the arc. OFF can show both rotate and tap hints; ON and CHARGING should
+prioritize countdown readability and use one compact action hint.
+
+The active state label should be small enough that `CHARGING` fits comfortably
+above the arc on the 240x240 round display. Use compact label typography for
+this row; the timer and power values carry the visual weight. Leave visible
+clearance between the label and the top of the arc; a label that barely fits in
+the camera view is too large for the physical UI.
+
+Text should use a small high-contrast palette rather than all-white labels.
+Recommended roles:
+
+```text
+state label:
+  OFF = warm amber
+  ON = fresh green
+  CHARGING = bright aqua
+time label = near-white
+power label = cool cyan
+secondary hint = soft mint
+primary tap action = amber when starting, soft rose when stopping
+unavailable/error action = coral red
+```
+
+Keep the colors bright enough for the camera and physical display, but avoid
+making every label equally loud. The timer remains the visual anchor; color is
+there to clarify status and action.
 
 ## Display Design
 
@@ -566,8 +694,11 @@ small state label: ON
 optional small hint: Press to stop
 ```
 
-The countdown arc range is 1 minute through `max_timer_minutes`, initially 180
-minutes.
+The active countdown arc should represent percentage remaining for the current
+timer session, not percentage of `max_timer_minutes`. For example, a fresh
+10 minute timer should render as a mostly full arc even though
+`max_timer_minutes` is 180. `max_timer_minutes` is the adjustment ceiling, not
+the visual countdown range.
 
 The arc should animate gently as the countdown moves toward zero.
 
@@ -637,10 +768,11 @@ if state == OFF and no user interaction for off_screen_blank_minutes:
   keep LEDs active
 ```
 
-Any ring movement or screen press while blanked wakes the screen.
+Any ring movement, display tap, or physical click while blanked wakes the
+screen.
 
-If the screen is blanked and the user presses the screen, only wake it. Do not
-start the charger from the first press after blanking.
+If the screen is blanked and the user taps or physically clicks, only wake it.
+Do not start the charger from the first primary action after blanking.
 
 ## Secrets and Sensitive Data
 
@@ -655,6 +787,12 @@ or other secrets in the committed YAML.
 ## Implementation Notes
 
 This file is a design spec, not the final implementation.
+
+Even the first minimal LVGL implementation should preserve the major OFF versus
+active visual distinction. Do not show the active countdown arc or live power
+readout on the OFF screen just because those widgets will be needed later for
+ON and CHARGING. The simplest acceptable OFF screen is plain text: OFF, the
+next-start preset, and the rotate/press hints.
 
 Suggested implementation order:
 
@@ -682,9 +820,12 @@ The implementation is considered good enough when all of the following are true:
 - While `OFF`, rotating the ring never turns on `switch.ego_charger`.
 - While `OFF`, the display clearly says it is off and shows the next-start
   preset duration.
-- While `OFF`, pressing the visible screen starts the charger timer.
-- While `OFF` with the screen blanked, the first press only wakes the screen.
-- While `ON` or `CHARGING`, pressing the screen turns the charger off.
+- While `OFF`, tapping the visible display or physically clicking starts the
+  charger timer.
+- While `OFF` with the screen blanked, the first tap or physical click only
+  wakes the screen.
+- While `ON` or `CHARGING`, tapping the display or physically clicking turns
+  the charger off.
 - While `ON` or `CHARGING`, rotating the ring adjusts the active countdown using
   the 1-minute / 5-minute step rules.
 - The timer expiry always attempts to turn off `switch.ego_charger`.
