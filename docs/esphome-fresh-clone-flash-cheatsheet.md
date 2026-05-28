@@ -6,19 +6,20 @@ a new checkout to firmware written to the CrowPanel in workbench `SLOT1`.
 Architecture:
 
 ```text
-Mac -> VS Code SSH -> Argon/Linux host -> devcontainer -> workbench -> SLOT1 CrowPanel
+Mac -> VS Code SSH -> Linux host -> devcontainer -> workbench -> SLOT1 CrowPanel
 ```
 
 Related setup notes:
 
 - Workbench/devcontainer setup summary: `docs/session-10-handoff.md`
-- Argon and reusable platform provisioning notes: `docs/platform-cookiecutter-plan.md`
+- Linux host and reusable platform provisioning notes:
+  `docs/platform-cookiecutter-plan.md`
 - Short command reference: `docs/esphome-workbench-cheatsheet.md`
 - Local config file rules: `config/README.md`
 - CrowPanel ESPHome configs: `esphome/README.md`
 - Home Assistant helper package: `config/home-assistant/ego-charger-helpers.yaml`
 
-## 1. Clone the repo on Argon
+## 1. Clone the repo on the Linux host
 
 ```bash
 mkdir -p ~/src
@@ -47,7 +48,7 @@ cp config/workbench.env.example config/workbench.env
 $EDITOR config/workbench.env
 ```
 
-Fill in the real workbench values for the Argon network. A typical local file
+Fill in the real workbench values for the Linux host network. A typical local file
 looks like this, with the IP adjusted for your workbench:
 
 ```bash
@@ -125,7 +126,7 @@ this device to make Home Assistant service calls. The panel uses explicit
 
 ## 5. Build or open the devcontainer
 
-From the repo root on Argon:
+From the repo root on the Linux host:
 
 ```bash
 devcontainer up --workspace-folder .

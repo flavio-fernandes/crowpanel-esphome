@@ -1,5 +1,11 @@
 # CrowPanel EGO Charger Production Test Matrix
 
+Last reviewed: 2026-05-28.
+
+This file is both the reusable production test plan and the historical evidence
+from a 2026-05-24 test execution. State values and timestamps in
+"Notes/evidence" sections are evidence from that run, not current live state.
+
 ## Scope and Assumptions
 
 This test plan covers production readiness for the CrowPanel EGO charger timer UI in `esphome/crowpanel.yaml`, measured against `docs/ego-charger-timer-ui.md`.
@@ -11,12 +17,12 @@ Assumptions:
 - Home Assistant helpers are durable state used by the panel after reboot/reconnect.
 - Codex may inspect the repo, validate/compile ESPHome YAML, query Home Assistant, use existing ESPHome diagnostic/test entities, and optionally inspect logs/camera evidence.
 - Codex must not flash firmware, change secrets, push to GitHub, or use destructive HA operations outside the normal charger state machine without explicit approval.
-- Camera observation is optional supporting evidence only. If no camera is available, display/LED checks require Flavio's visual confirmation.
+- Camera observation is optional supporting evidence only. If no camera is available, display/LED checks require local visual confirmation.
 - During this execution, `/dev/v4l/by-id` was not present, so no local camera evidence was captured.
 
 ## Test Environment Prerequisites
 
-- Repo checkout at `/home/ff/src/crowpanel-esphome`.
+- Repo checkout at `~/src/crowpanel-esphome` or another local path.
 - ESPHome/devcontainer workflow available:
   - `devcontainer exec --workspace-folder . esphome config esphome/crowpanel.yaml`
   - `devcontainer exec --workspace-folder . esphome compile esphome/crowpanel.yaml`
@@ -288,7 +294,7 @@ Do not add buttons that directly set switch/helper state outside the normal stat
 - Expected result: Tap starts timer through the normal primary action path.
 - How to observe result: Display, LEDs, HA states/logs.
 - Pass/fail status: MANUAL
-- Notes/evidence/log snippets: Requires Flavio touch/display confirmation.
+- Notes/evidence/log snippets: Requires local touch/display confirmation.
 
 ### M002 - Physical click starts from OFF
 
@@ -300,7 +306,7 @@ Do not add buttons that directly set switch/helper state outside the normal stat
 - Expected result: Physical click starts timer through the same decision path as tap.
 - How to observe result: Display, LEDs, HA states/logs.
 - Pass/fail status: MANUAL
-- Notes/evidence/log snippets: Requires Flavio physical click confirmation.
+- Notes/evidence/log snippets: Requires local physical click confirmation.
 
 ### M003 - Light display tap stops from ON
 
@@ -312,7 +318,7 @@ Do not add buttons that directly set switch/helper state outside the normal stat
 - Expected result: Tap requests stop and does not show OFF before switch confirms OFF.
 - How to observe result: Display, LEDs, HA states/logs.
 - Pass/fail status: MANUAL
-- Notes/evidence/log snippets: Requires Flavio touch/display confirmation.
+- Notes/evidence/log snippets: Requires local touch/display confirmation.
 
 ### M004 - Physical click stops from ON
 
@@ -324,7 +330,7 @@ Do not add buttons that directly set switch/helper state outside the normal stat
 - Expected result: Physical click requests stop through the same decision path as tap.
 - How to observe result: Display, LEDs, HA states/logs.
 - Pass/fail status: MANUAL
-- Notes/evidence/log snippets: Requires Flavio physical click confirmation.
+- Notes/evidence/log snippets: Requires local physical click confirmation.
 
 ### M005 - Tap while blanked wakes only
 

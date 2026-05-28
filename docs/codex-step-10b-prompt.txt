@@ -1,3 +1,9 @@
+Historical archive, reviewed 2026-05-28.
+
+This was the Step 10B prompt used before the current CrowPanel firmware,
+workbench docs, and reusable platform repo existed. Use docs/current-state.md
+and docs/next-codex-prompt.md for current continuation context.
+
 Read AGENTS.md, README.md, docs/session-10-handoff.md, and docs/project-sources.md.
 
 Do not change files yet.

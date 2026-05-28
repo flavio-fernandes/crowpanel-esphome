@@ -4,6 +4,9 @@ Step: 10E0
 
 Captured: 2026-05-19
 
+Reviewed: 2026-05-28. This began as a pre-firmware reference capture. The
+current firmware and workflow state now live in `../../current-state.md`.
+
 Purpose: keep the CrowPanel bring-up grounded in local, attributed notes before
 creating any CrowPanel ESPHome YAML.
 
@@ -104,9 +107,12 @@ URL: https://docs.espressif.com/projects/esp-hardware-design-guidelines/en/lates
 Use this for boot strapping pin caution. This matters because Elecrow assigns
 GPIO45 and GPIO46 to user-facing hardware.
 
-## Deliberately not captured yet
+## Current boundary
 
-- No CrowPanel ESPHome YAML.
-- No downloaded factory firmware binaries.
-- No copied secrets.
-- No flashing notes beyond the existing workbench safety docs.
+Keep this directory focused on attributed CrowPanel hardware and ESPHome/LVGL
+reference notes. Current firmware instructions, flashing workflows, Home
+Assistant helper setup, and production test procedures live in the top-level
+docs listed from `../../current-state.md`.
+
+Do not add copied secrets, generated firmware, private local setup values, or
+factory firmware binaries here.

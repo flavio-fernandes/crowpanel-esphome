@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# Historical snapshot only. Reviewed 2026-05-28.
+# Do not run this file as the current workbench wrapper. Use
+# tools/espwb-esptool and tools/espwb-ssh, which use project-local config,
+# per-run temporary directories, and cleanup behavior.
 set -euo pipefail
 
 WORKBENCH_IP="${WORKBENCH_IP:-192.0.2.10}"

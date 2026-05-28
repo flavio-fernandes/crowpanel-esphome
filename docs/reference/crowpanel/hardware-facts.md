@@ -2,6 +2,8 @@
 
 Captured: 2026-05-19
 
+Reviewed: 2026-05-28.
+
 Product: Elecrow CrowPanel 1.28 inch HMI ESP32 Rotary Display, 240 x 240 IPS
 round touch knob screen.
 
@@ -100,6 +102,9 @@ Source: Espressif ESP32-S3 hardware design guidelines.
 - CST816D touch works in ESPHome with normal probing on I2C address `0x15`,
   SDA GPIO6, SCL GPIO7, INT GPIO5, reset GPIO13, `mirror_y: true`, and
   `swap_xy: true`.
+- GPIO41 knob press works as an active-low button with pullup and inverted
+  semantics.
+- GPIO45/GPIO42 rotary input works with pullups.
 - GPIO46 backlight is active-high and LEDC/PWM-capable when driven after boot.
   The current stable diagnostic uses a fixed 60% level.
 - Current ESPHome board baseline: `esp32-s3-devkitc-1`, `flash_size: 16MB`,
@@ -112,4 +117,3 @@ Source: Espressif ESP32-S3 hardware design guidelines.
 
 - Do GPIO45/GPIO42 need swapped in ESPHome to make rotary direction feel
   natural?
-- Does GPIO41 knob press need pull-up or inverted semantics?

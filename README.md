@@ -119,7 +119,7 @@ Start with the guide that matches what you are doing:
   [`config/README.md`](config/README.md)
 - Source links and external references:
   [`docs/project-sources.md`](docs/project-sources.md)
-- Release hygiene:
+- Public hygiene:
   [`docs/public-release-checklist.md`](docs/public-release-checklist.md)
 
 ## Safety Rules

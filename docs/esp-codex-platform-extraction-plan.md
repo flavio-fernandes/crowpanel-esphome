@@ -1,9 +1,20 @@
 # ESP Codex platform extraction plan
 
+Status: historical extraction plan. Reviewed 2026-05-28.
+
+The platform repo now exists as `flavio-fernandes/esp-codex-platform` and was
+observed through the GitHub connector as public. The local sibling checkout
+referenced by older notes was not present next to this checkout during the
+2026-05-28 review.
+
+The generic follow-up candidates from this repo were applied to the platform in
+`1c756d9 Refresh ESP platform starter workflow`; future candidates are listed
+in `docs/roadmap.md`.
+
 Goal: create a reusable, boring starter repo for future ESPHome and embedded
 workbench projects, based on the workflow proven in this CrowPanel repo.
 
-Proposed repo name: `esp-codex-platform`.
+Repo name: `esp-codex-platform`.
 
 ## Extraction principles
 
@@ -85,6 +96,8 @@ esp-codex-platform/
 
 ## First implementation pass
 
+This pass has been completed.
+
 1. Create the repo directory outside this workspace only after explicit approval.
 2. Copy reusable files from this repo.
 3. Replace project-specific names, paths, IPs, slot warnings, and board examples
@@ -94,9 +107,9 @@ esp-codex-platform/
 6. Create a local initial commit.
 7. Push or create GitHub only after explicit approval.
 
-## Open choices before creating the repo
+## Resolved choices
 
-- Repo location: sibling checkout next to this project.
-- GitHub visibility: private by default.
-- Template style: plain starter repo first; Cookiecutter or Copier can come
+- Repo location: originally a sibling checkout next to this project.
+- GitHub visibility: public after public-hygiene review.
+- Template style: plain starter repo first. Cookiecutter or Copier can come
   later if the plain version proves useful.

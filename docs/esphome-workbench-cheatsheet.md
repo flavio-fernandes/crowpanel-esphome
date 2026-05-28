@@ -148,4 +148,4 @@ state after RFC2217 close.
 - No secrets in git.
 - No flashing slots other than `SLOT1` unless explicitly approved.
 - No `sudo` unless explicitly approved.
-- No GitHub push yet.
+- No GitHub push unless explicitly approved.

@@ -2,8 +2,11 @@
 
 Captured: 2026-05-19
 
-This is not firmware. It is the compatibility and bring-up plan before creating
-the first CrowPanel ESPHome YAML.
+Reviewed: 2026-05-28.
+
+This is not firmware. It began as the compatibility and bring-up plan before
+creating the first CrowPanel ESPHome YAML. Keep using it as the hardware/LVGL
+reference trail; use `../../current-state.md` for the current firmware state.
 
 ## Capability mapping
 
@@ -86,7 +89,7 @@ Notes from `bruxy70/ha-development`:
 10. Add LVGL with one static page.
 11. Add Home Assistant API/imported entities and UI interactions.
 
-## First YAML should not include
+## Initial bring-up rule
 
 - LVGL.
 - Home Assistant API.
@@ -94,6 +97,10 @@ Notes from `bruxy70/ha-development`:
 - Wi-Fi credentials beyond what is strictly necessary, if any.
 - Display, touch, rotary, OLED, and WS2812 all at once.
 - Any large UI definition.
+
+This rule applied to the first hardware bring-up YAMLs. The current production
+firmware intentionally includes LVGL, Wi-Fi, API, OTA, and Home Assistant
+entities after those pieces were validated incrementally.
 
 ## Early validation commands
 

@@ -1,8 +1,17 @@
 # Platform cookiecutter plan
 
+Status: long-term planning note. Reviewed 2026-05-28.
+
+The first plain starter repo now exists as
+`flavio-fernandes/esp-codex-platform` and is public. Treat this file as the
+backlog for future template/generator work, not as the current creation plan.
+Generic port candidates from this repo were applied to the platform in
+`1c756d9 Refresh ESP platform starter workflow`; future candidates are listed
+in `docs/roadmap.md`.
+
 Long-term goal: turn the CrowPanel workspace pattern into a reusable, boringly repeatable platform for future ESPHome and embedded workbench projects.
 
-## Argon bootstrap
+## Linux host bootstrap
 
 - Verify OS, architecture, Docker Engine, Docker Compose, and devcontainer CLI.
 - Confirm the user can run Docker without `sudo`.
@@ -38,8 +47,8 @@ Long-term goal: turn the CrowPanel workspace pattern into a reusable, boringly r
 
 ## GitHub setup flow
 
-- Keep the repo local until the devcontainer build and validation pass.
+- For new platform-like repos, keep the repo local until the devcontainer build
+  and validation pass.
 - Review `git status --short`, `git diff --check`, and ignored secret/build-output behavior before the first commit.
-- Create the first commit only after the Step 10C review.
 - Push to GitHub only after explicit user approval.
 - Use a private repo by default unless the user chooses otherwise.
