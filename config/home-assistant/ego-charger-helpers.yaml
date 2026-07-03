@@ -43,11 +43,19 @@ automation:
       Mirrors the panel cleanup when the switch confirms off, so helpers do
       not stay stale if the panel is offline. pending_off is intentionally
       cleared only here, on a confirmed off, matching the panel FSM rules.
+      Triggers on any arrival at off (including unavailable to off after a
+      restart) and at Home Assistant start, because a charger that turned off
+      while HA was down never produces an on-to-off transition.
     triggers:
       - trigger: state
         entity_id: switch.ego_charger
-        from: "on"
         to: "off"
+      - trigger: homeassistant
+        event: start
+    conditions:
+      - condition: state
+        entity_id: switch.ego_charger
+        state: "off"
     actions:
       - action: input_boolean.turn_off
         target:
@@ -114,13 +122,20 @@ automation:
       Backstop matching ego_charger_max_timer_minutes. If the charger has been
       on for 3 hours with no active timer helper, nothing is managing it (for
       example the panel died right after an external turn-on), so cut power.
+      Runs from time_pattern with a last_changed-based state condition instead
+      of a state trigger with "for", because an armed "for" wait is discarded
+      on automation reload and never re-arms without a fresh transition. The
+      last_changed clock restarts when HA restarts, so this backstop can fire
+      late, but it can never be lost.
     triggers:
-      - trigger: state
+      - trigger: time_pattern
+        minutes: "/15"
+    conditions:
+      - condition: state
         entity_id: switch.ego_charger
-        to: "on"
+        state: "on"
         for:
           hours: 3
-    conditions:
       - condition: state
         entity_id: input_boolean.ego_charger_timer_active
         state: "off"
