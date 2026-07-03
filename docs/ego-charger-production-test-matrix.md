@@ -486,6 +486,19 @@ Do not add buttons that directly set switch/helper state outside the normal stat
 - Pass/fail status: MANUAL
 - Notes/evidence/log snippets: Requires deliberate external HA switch change.
 
+### M017 - HA restart with unchanged switch state does not strand SYNCING
+
+- Category: HA resilience
+- Preconditions: Panel online and settled in OFF (or ON/CHARGING) with no switch changes planned.
+- Steps:
+  1. Restart Home Assistant (or otherwise drop and restore the ESPHome API connection) without toggling `switch.ego_charger`.
+  2. Wait for the API to reconnect.
+  3. Observe the panel state within a few seconds of reconnect.
+- Expected result: Panel returns to the correct OFF/ON/CHARGING state without any switch toggle or user interaction; it must not stay in SYNCING. Reconnect logs show the switch state import marking the switch as seen.
+- How to observe result: Display, `EGO Charger Effective State`, ESPHome logs.
+- Pass/fail status: MANUAL
+- Notes/evidence/log snippets: Regression test for the deduplicated-callback SYNCING lockup; unchanged switch state on reconnect previously never re-set `ego_charger_switch_seen`.
+
 ## Production Readiness Checklist
 
 - [x] ESPHome config validates.
@@ -505,4 +518,4 @@ Do not add buttons that directly set switch/helper state outside the normal stat
 - [x] Rotary encoder acts as an infinite directional control and does not saturate by static inspection and test ring evidence.
 - [ ] LEDs match OFF/blanked/ON/CHARGING requirements.
 - [ ] No accidental double action from combined touch/button physical press.
-- [ ] Manual physical tests M001-M016 completed.
+- [ ] Manual physical tests M001-M017 completed.

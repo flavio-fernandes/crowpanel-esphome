@@ -30,3 +30,102 @@ input_boolean:
     name: EGO charger timer active
   ego_charger_panel_pending_off:
     name: EGO charger panel pending off
+
+# Home Assistant side failsafe and reconciliation automations. The CrowPanel
+# firmware already handles these cases while it is alive; these automations
+# cover the remaining gap where the panel itself is offline, rebooting, or
+# permanently dead so the charger can never be left on indefinitely and the
+# helpers can never stay stale.
+automation:
+  - id: ego_charger_reconcile_helpers_on_switch_off
+    alias: EGO charger reconcile helpers when charger turns off
+    description: >-
+      Mirrors the panel cleanup when the switch confirms off, so helpers do
+      not stay stale if the panel is offline. pending_off is intentionally
+      cleared only here, on a confirmed off, matching the panel FSM rules.
+    triggers:
+      - trigger: state
+        entity_id: switch.ego_charger
+        from: "on"
+        to: "off"
+    actions:
+      - action: input_boolean.turn_off
+        target:
+          entity_id:
+            - input_boolean.ego_charger_timer_active
+            - input_boolean.ego_charger_panel_pending_off
+    mode: single
+
+  - id: ego_charger_failsafe_pending_off
+    alias: EGO charger failsafe honor panel pending off
+    description: >-
+      The panel sets ego_charger_panel_pending_off when it wants the charger
+      off but could not confirm it. If the panel dies before it can retry,
+      Home Assistant finishes the job.
+    triggers:
+      - trigger: state
+        entity_id: input_boolean.ego_charger_panel_pending_off
+        to: "on"
+      - trigger: time_pattern
+        minutes: "/5"
+    conditions:
+      - condition: state
+        entity_id: input_boolean.ego_charger_panel_pending_off
+        state: "on"
+      - condition: state
+        entity_id: switch.ego_charger
+        state: "on"
+    actions:
+      - action: switch.turn_off
+        target:
+          entity_id: switch.ego_charger
+    mode: single
+
+  - id: ego_charger_failsafe_expired_timer
+    alias: EGO charger failsafe turn off after timer expiry
+    description: >-
+      Turns the charger off if the persisted end time passed and the panel did
+      not do it (panel offline or rebooting). The two minute grace period lets
+      the panel act first.
+    triggers:
+      - trigger: time_pattern
+        minutes: "/1"
+    conditions:
+      - condition: state
+        entity_id: switch.ego_charger
+        state: "on"
+      - condition: state
+        entity_id: input_boolean.ego_charger_timer_active
+        state: "on"
+      - condition: template
+        value_template: >-
+          {{ has_value('input_datetime.ego_charger_timer_end_time')
+             and now().timestamp() >
+                 (state_attr('input_datetime.ego_charger_timer_end_time', 'timestamp') + 120) }}
+    actions:
+      - action: switch.turn_off
+        target:
+          entity_id: switch.ego_charger
+    mode: single
+
+  - id: ego_charger_failsafe_unmanaged_on
+    alias: EGO charger failsafe unmanaged charger left on
+    description: >-
+      Backstop matching ego_charger_max_timer_minutes. If the charger has been
+      on for 3 hours with no active timer helper, nothing is managing it (for
+      example the panel died right after an external turn-on), so cut power.
+    triggers:
+      - trigger: state
+        entity_id: switch.ego_charger
+        to: "on"
+        for:
+          hours: 3
+    conditions:
+      - condition: state
+        entity_id: input_boolean.ego_charger_timer_active
+        state: "off"
+    actions:
+      - action: switch.turn_off
+        target:
+          entity_id: switch.ego_charger
+    mode: single
