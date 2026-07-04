@@ -519,7 +519,50 @@ set or keep pending_off until switch confirms off
 state = OFF once switch confirms off
 ```
 
+### Home Assistant Reconnect With Unchanged State
+
+A Home Assistant restart or a brief API disconnect usually reconnects with the
+switch in the same state it had before. The implementation must not depend on
+edge-triggered state callbacks to leave `SYNCING`, because ESPHome deduplicates
+switch and binary sensor publishes: a reconnect that re-imports an unchanged
+state fires no `on_turn_on` / `on_turn_off` edge.
+
+```text
+on reconnect:
+  keep the last imported switch and helper state as the working estimate
+  resync from a state import path that fires on every push, even when the
+    value is unchanged (for example a text-sensor import of the switch state)
+  never require a physical switch toggle to leave SYNCING
+```
+
+If the panel was showing an active countdown when the connection dropped, the
+reconnect must return it to `ON` / `CHARGING` (or reconcile to `OFF`) without
+user interaction.
+
+### Home Assistant Side Failsafes
+
+The panel cannot protect the charger while the panel itself is offline,
+rebooting, or dead. The Home Assistant package should carry failsafe
+automations built on the existing helpers:
+
+```text
+switch confirms off -> clear timer_active and panel_pending_off
+panel_pending_off on while switch on -> switch.turn_off
+timer_active on and end time passed (plus grace) while switch on -> switch.turn_off
+switch on for max_timer_minutes with timer_active off -> switch.turn_off
+```
+
+Together with the panel FSM these guarantee the charger is never left on
+indefinitely no matter which side restarts or disappears.
+
 ## Home Assistant Unavailable Behavior
+
+The panel must not self-reboot merely because Home Assistant is unreachable.
+Disable the ESPHome API `reboot_timeout` (`reboot_timeout: 0s`); the default
+15-minute timeout would restart the panel during a long HA outage and destroy
+the local countdown state this section depends on. Keep the Wi-Fi
+`reboot_timeout` at its default so a genuinely wedged network stack still
+recovers.
 
 ### HA Unavailable While OFF
 

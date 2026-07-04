@@ -180,6 +180,12 @@ logger:
 
 # Enable Home Assistant API
 api:
+  # Never self-reboot just because Home Assistant is away. The default
+  # 15-minute API reboot_timeout would restart the panel mid-countdown during
+  # a long HA outage, wiping the non-persisted local timer state the FSM
+  # relies on while HA is unavailable. Wi-Fi keeps its own reboot_timeout for
+  # recovering a genuinely wedged network stack.
+  reboot_timeout: 0s
   encryption:
     key: !secret api_encryption_key
   on_client_connected:
@@ -190,12 +196,13 @@ api:
           - globals.set:
               id: ha_is_connected
               value: "true"
-          - lambda: |-
-              id(ego_charger_switch_seen) = false;
-              id(ego_charger_timer_active_seen) = false;
-              id(ego_charger_timer_end_time_seen) = false;
-              id(ego_charger_preset_duration_seen) = false;
-              id(ego_charger_panel_pending_off_seen) = false;
+          # Do not clear the *_seen flags here. Switch and binary_sensor state
+          # callbacks are deduplicated by ESPHome, so when Home Assistant
+          # reconnects with an unchanged entity state no on_turn_on/on_turn_off
+          # edge fires to set the flags back, which left the panel stuck in
+          # SYNCING after every HA restart. The last imported state remains the
+          # best estimate until ego_charger_switch_state_text confirms fresh
+          # state and triggers a resync.
           - lvgl.widget.show: lbl_hastatus
           - script.execute: ego_charger_schedule_resync
           - script.execute: ego_charger_retry_pending_off
@@ -1819,6 +1826,27 @@ text_sensor:
     on_value:
       then:
         - lambda: "id(ego_charger_timer_end_time_seen) = true;"
+        - script.execute: ego_charger_schedule_resync
+  # Dedup-proof import of the charger switch state. Text sensor publishes are
+  # not deduplicated, so this fires on every state push from Home Assistant,
+  # including reconnects where the switch state is unchanged and the
+  # edge-triggered ego_charger_switch callbacks stay silent. This is what
+  # releases SYNCING after a Home Assistant restart or API reconnect.
+  - platform: homeassistant
+    id: ego_charger_switch_state_text
+    entity_id: ${ego_charger_switch_entity}
+    internal: true
+    on_value:
+      then:
+        - lambda: |-
+            if (x == "on" || x == "off") {
+              if (!id(ego_charger_switch_seen)) {
+                ESP_LOGI("ego_charger", "${ego_charger_switch_entity} state '%s' imported; switch is now seen", x.c_str());
+              }
+              id(ego_charger_switch_seen) = true;
+            } else {
+              ESP_LOGW("ego_charger", "${ego_charger_switch_entity} reported state '%s'; waiting for on/off", x.c_str());
+            }
         - script.execute: ego_charger_schedule_resync
   - platform: wifi_info
     ip_address:
