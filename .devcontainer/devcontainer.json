@@ -12,8 +12,6 @@
   "workspaceFolder": "/workspaces/crowpanel-esphome",
   "remoteUser": "vscode",
   "containerEnv": {
-    "BENCH_AGENT": "bench-agent",
-    "BENCH_SLOT": "SLOT1",
     "PLATFORMIO_CORE_DIR": "/cache/platformio",
     "PIP_CACHE_DIR": "/cache/pip"
   },
