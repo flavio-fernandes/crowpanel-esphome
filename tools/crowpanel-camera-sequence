@@ -1,47 +1,21 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-
-COUNT="${1:-4}"
-INTERVAL="${2:-3}"
-STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
-OUTDIR="artifacts/crowpanel-camera-${STAMP}"
-
-usage() {
-  cat <<USAGE
-Usage:
-  tools/crowpanel-camera-sequence [count] [interval-seconds]
-
-Captures a timed JPEG sequence from the CrowPanel camera.
-Default: 4 frames, 3 seconds apart.
-USAGE
-}
-
-if [[ "$COUNT" == "-h" || "$COUNT" == "--help" ]]; then
-  usage
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+if [[ "${1:-}" == --help || "${1:-}" == -h ]]; then
+  printf 'Usage: tools/crowpanel-camera-sequence [count (1..60)] [interval-seconds (0..600)]\nDefault: 4 JPEG frames, 3 seconds apart, in artifacts/crowpanel-camera-<timestamp>/\n'
   exit 0
 fi
-
-case "$COUNT" in
-  ''|*[!0-9]*)
-    usage >&2
-    exit 2
-    ;;
-esac
-
-case "$INTERVAL" in
-  ''|*[!0-9]*)
-    usage >&2
-    exit 2
-    ;;
-esac
-
-mkdir -p "$OUTDIR"
-
-for ((idx = 1; idx <= COUNT; idx++)); do
-  printf -v frame "%s/frame-%02d.jpg" "$OUTDIR" "$idx"
-  tools/crowpanel-camera-capture "$frame" >/dev/null
+[[ $# -le 2 ]] || exit 2
+count="${1:-4}"; interval="${2:-3}"
+[[ "$count" =~ ^[0-9]{1,2}$ && "$interval" =~ ^[0-9]{1,3}$ ]] || exit 2
+((10#$count >= 1 && 10#$count <= 60 && 10#$interval <= 600)) || exit 2
+count=$((10#$count)); interval=$((10#$interval))
+outdir="artifacts/crowpanel-camera-$(date -u +%Y%m%dT%H%M%SZ)"
+# Keep the CrowPanel JPEG-directory interface, rather than the generic tar output.
+# Each capture uses W11's atomic SSH download. Stop immediately on any failure.
+for ((idx = 1; idx <= count; idx++)); do
+  printf -v frame '%s/frame-%02d.jpg' "$outdir" "$idx"
+  "$SCRIPT_DIR/crowpanel-camera-capture" "$frame" >/dev/null
   printf '%s\n' "$frame"
-  if [[ "$idx" -lt "$COUNT" ]]; then
-    sleep "$INTERVAL"
-  fi
+  if ((idx < count)); then sleep "$interval"; fi
 done

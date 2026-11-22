@@ -17,7 +17,7 @@ rg -n '<private-lan-regex>|<secret-regex>'
 
 Confirm that tracked files do not include:
 
-- `config/workbench.env`
+- `config/bench.env`
 - `esphome/secrets.yaml`
 - `.env` or `.env.*`
 - private keys, tokens, passwords, or certificates
@@ -26,5 +26,5 @@ Confirm that tracked files do not include:
 - local captures under `artifacts/`
 - private LAN IPs, device MACs, usernames, hostnames, or Tailscale names
 
-Local setup values belong in ignored files such as `config/workbench.env`.
+Local setup values belong in ignored files such as `config/bench.env`.
 Committed docs should use placeholders like `192.0.2.10`.

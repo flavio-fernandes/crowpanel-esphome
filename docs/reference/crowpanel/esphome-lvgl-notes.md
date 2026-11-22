@@ -104,7 +104,7 @@ entities after those pieces were validated incrementally.
 
 ## Early validation commands
 
-Use the existing workbench flow:
+Use the restricted bench-agent flow:
 
 ```bash
 devcontainer exec --workspace-folder . esphome config <crowpanel-yaml>
@@ -118,79 +118,8 @@ Only after config, compile, and identity checks pass:
 devcontainer exec --workspace-folder . tools/espwb-esptool write-flash 0x0 <firmware.factory.bin>
 ```
 
-Do not use RFC2217 for flashing or reset control.
+Use only the restricted SSH flash verb; monitoring never resets on exit.
 
-## Bring-up notes
+## Bring-up evidence
 
-- 2026-05-19: `examples/crowpanel-128-backlight/crowpanel-128-backlight.yaml`
-  compiled and flashed, but the screen remained visually blank because that
-  firmware did not initialize or draw to the GC9A01A panel.
-- 2026-05-19: `examples/crowpanel-128-display-test/crowpanel-128-display-test.yaml`
-  validated, compiled, and flashed. It enables GPIO46 on boot and draws a
-  native ESPHome `mipi_spi` GC9A01A color quadrant/crosshair pattern. Awaiting
-  visual confirmation on the physical LCD.
-- 2026-05-20: The `mipi_spi` display test remained blank on the physical LCD.
-  Elecrow's own ESPHome lessons for this exact 1.28 inch rotary CrowPanel use
-  `display: ili9xxx`, `model: GC9A01A`, GPIO9 CS, GPIO3 DC, GPIO14 reset,
-  GPIO10 SCLK, GPIO11 MOSI, GPIO46 LEDC backlight, `invert_colors: true`, and
-  `show_test_card: true` for bring-up. The local display test is being adjusted
-  to match that known Elecrow ESPHome path.
-- 2026-05-20: `examples/crowpanel-128-io-diagnostic/crowpanel-128-io-diagnostic.yaml`
-  validated, compiled, and flashed. Runtime logs confirm the diagnostic cycles
-  every 3 seconds through GPIO48 ambient LEDs, GPIO46 backlight levels, GPIO40,
-  and LCD fill updates. Awaiting physical observation of which outputs actually
-  change.
-- 2026-05-20: The diagnostic now also drives GPIO1 and GPIO2, matching
-  Elecrow's `out1` and `out2` examples. An intermediate build boot-looped
-  because `on_boot` priority `800` attempted to set GPIO46 LEDC before the
-  output was initialized. The flashed build now uses `on_boot` priority `-100`;
-  serial logs show phase 0/1/2 advancing without the LEDC panic.
-- 2026-05-20: Last physical observation before the `on_boot` priority fix was
-  solid red rear LEDs and a fully black round LCD with no visible glow. Re-test
-  visually against the fixed diagnostic before concluding the display or
-  backlight path is physically bad.
-- 2026-05-20: A USB camera on the Linux host is now usable for visual debugging through
-  `tools/crowpanel-camera-capture` and `tools/crowpanel-camera-sequence`.
-  Captures after an esptool reset show the rear LEDs visually green/cyan while
-  the round LCD remains black, even though serial logs continue reporting phase
-  0/1/2. Next display/LED diagnostics should be camera-friendly: keep backlight
-  at 100%, avoid same-period camera/firmware timing, and change one visible
-  output at a time.
-- 2026-05-20: The tuned IO diagnostic is stable enough to serve as the current
-  visual baseline. Changes that mattered: `ili9xxx` GC9A01A `data_rate: 20MHz`,
-  constant 60% GPIO46 backlight, GPIO40/GPIO1/GPIO2 held on, GPIO48 WS2812
-  brightness 40%, and `use_psram: false` for the LED strip. A 125 second serial
-  soak showed every LCD update returning, and camera captures confirmed the
-  LCD target/crosshair plus rear RGB LEDs cycling through red, green, and blue.
-- 2026-05-20: CST816 touch was added to the stable visual baseline using
-  Elecrow's ESPHome pins and transform: I2C SDA GPIO6, SCL GPIO7, address
-  `0x15`, INT GPIO5, reset GPIO13, `mirror_y: true`, and `swap_xy: true`.
-  Taps and drags produced transformed/raw coordinate logs while the LCD/RGB
-  loop continued running.
-- 2026-05-20: Rotary encoder and knob button logging were added to the
-  diagnostic baseline using GPIO45/GPIO42 for A/B and GPIO41 for the active-low
-  press input. The refreshed YAML passed `esphome config`, compiled, flashed to
-  SLOT1 through `tools/espwb-esptool`, and camera capture confirmed the LCD/RGB
-  diagnostic still runs after flashing. Runtime interaction logs captured knob
-  rotation in both directions plus button press/release events while touch and
-  display updates continued working.
-- 2026-05-21: The LVGL diagnostic display block was migrated from deprecated
-  `ili9xxx` to `mipi_spi` while keeping the same GC9A01A model, GPIO9 CS, GPIO3
-  DC, GPIO14 reset, 240 x 240 dimensions, `invert_colors: true`, and 20MHz SPI
-  data rate. `esphome config` and `esphome compile` passed without the
-  deprecation warning, flashing to SLOT1 verified successfully, and camera
-  capture `artifacts/crowpanel-camera-20260521T202218Z.jpg` showed the LVGL UI
-  rendered on the round LCD.
-- 2026-05-21: The older display-test and IO diagnostic examples were briefly
-  migrated to `mipi_spi` and both YAML files passed `esphome config` and
-  `esphome compile`, but flashing the native display-test left the physical LCD
-  blank. Those native diagnostics were restored to `ili9xxx`; the LVGL
-  diagnostic remains on the physically verified `mipi_spi` path. The
-  display-test boot sequence stayed aligned with the stable post-initialization
-  GPIO46 backlight pattern.
-- 2026-05-20: Workbench temporarily became unreachable from the Linux host with
-  incomplete ARP and `Destination Host Unreachable`; reboot restored SSH and
-  RFC2217. Current boot health was normal and journal history was volatile, so
-  no prior-boot root cause was available. If this repeats, capture uptime,
-  `vcgencmd get_throttled`, `journalctl --list-boots`, and network reachability
-  before rebooting.
+The dated physical observations are preserved in [history](../../history/crowpanel-esphome-lvgl-notes.md); they do not validate the new bench transport.

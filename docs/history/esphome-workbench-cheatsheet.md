@@ -1,3 +1,5 @@
+> Historical pre-migration evidence, not an Argon operating guide. Use [the current bench guide](/docs/esphome-bench-cheatsheet.md).
+
 # ESPHome workbench cheat sheet
 
 ## Current architecture

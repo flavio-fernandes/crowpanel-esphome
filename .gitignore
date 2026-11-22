@@ -38,3 +38,8 @@ artifacts/
 Thumbs.db
 .vscode/*
 !.vscode/settings.json
+
+config/bench.env
+bench/.venv/
+__pycache__/
+.pytest_cache/

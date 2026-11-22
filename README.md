@@ -16,14 +16,14 @@ state, and status messages update from Home Assistant.
 
 This project is both a working firmware and a reproducible bring-up notebook.
 It captures the small details that make CrowPanel development much smoother:
-ESPHome/LVGL structure, Home Assistant helper entities, workbench-safe flashing,
-serial-monitor caveats, physical camera verification, and known-good diagnostic
+ESPHome/LVGL structure, Home Assistant helper entities, bench-safe flashing,
+non-resetting serial monitoring, physical camera verification, and known-good diagnostic
 examples.
 
 The development path is:
 
 ```text
-Mac -> VS Code SSH -> Linux host -> Docker/devcontainer -> ESP workbench -> SLOT1 CrowPanel
+Mac -> VS Code SSH -> Linux host -> Docker/devcontainer -> restricted bench-agent -> SLOT1 CrowPanel
 ```
 
 ## Hardware
@@ -44,14 +44,14 @@ Useful hardware references:
 - [`config/home-assistant/ego-charger-helpers.yaml`](config/home-assistant/ego-charger-helpers.yaml)
   - Home Assistant helper entities used by the firmware.
 - [`examples/`](examples/) - small ESPHome examples and CrowPanel diagnostics.
-- [`tools/`](tools/) - workbench helpers for validation, serial logs, flashing,
+- [`tools/`](tools/) - bench helpers for validation, serial logs, flashing,
   and camera capture.
 - [`docs/`](docs/) - bring-up notes, safety notes, test plans, source links, and
   repeatable workflows.
 
 ## Quick Start
 
-Clone the repo on the Linux host connected to the ESP workbench:
+Clone the repo on the Linux host connected to the restricted bench-agent:
 
 ```bash
 mkdir -p ~/src
@@ -63,7 +63,7 @@ cd crowpanel-esphome
 Create local-only config files:
 
 ```bash
-cp config/workbench.env.example config/workbench.env
+cp config/bench.env.example config/bench.env
 cp esphome/secrets.yaml.example esphome/secrets.yaml
 ```
 
@@ -84,12 +84,18 @@ devcontainer exec --workspace-folder . esphome config esphome/crowpanel.yaml
 devcontainer exec --workspace-folder . esphome compile esphome/crowpanel.yaml
 ```
 
+The CrowPanel is not currently installed on the bench. Do not assume SLOT1 holds it.
+Once installed and explicitly approved, hold the slot and back up its firmware.
 Flash only after a successful compile of that same YAML:
 
 ```bash
+devcontainer exec --workspace-folder . tools/wb hold SLOT1 60 crowpanel-development
 devcontainer exec --workspace-folder . tools/espwb-esptool flash-id
+devcontainer exec --workspace-folder . tools/espwb-esptool read-flash 0x0 ALL artifacts/pre-flash.bin
 devcontainer exec --workspace-folder . tools/espwb-esptool write-flash 0x0 esphome/.esphome/build/crowpanel/.pioenvs/crowpanel/firmware.factory.bin
 ```
+
+Release the hold with `tools/wb release SLOT1` after verification, including on failure.
 
 For the full fresh-clone workflow, including secrets, Home Assistant helpers,
 compile paths, flashing, monitoring, and camera verification, start here:
@@ -101,8 +107,8 @@ Start with the guide that matches what you are doing:
 
 - New checkout to flashed firmware:
   [`docs/esphome-fresh-clone-flash-cheatsheet.md`](docs/esphome-fresh-clone-flash-cheatsheet.md)
-- Short workbench command reference:
-  [`docs/esphome-workbench-cheatsheet.md`](docs/esphome-workbench-cheatsheet.md)
+- Short bench command reference:
+  [`docs/esphome-bench-cheatsheet.md`](docs/esphome-bench-cheatsheet.md)
 - CrowPanel hardware and LVGL notes:
   [`docs/reference/crowpanel/README.md`](docs/reference/crowpanel/README.md)
 - CrowPanel ESPHome/LVGL implementation notes:
@@ -127,10 +133,9 @@ Start with the guide that matches what you are doing:
 - Flash only `SLOT1` unless you explicitly decide otherwise.
 - Use [`tools/espwb-esptool`](tools/espwb-esptool) for `chip-id`, `flash-id`,
   `read-flash`, and `write-flash`.
-- Use RFC2217 only for serial monitoring through
-  [`tools/espwb-monitor`](tools/espwb-monitor).
-- Do not use RFC2217 reset control for flashing.
-- Keep `config/workbench.env`, `esphome/secrets.yaml`, firmware binaries, and
+- Monitor through [`tools/espwb-monitor`](tools/espwb-monitor), which never resets on exit.
+- Hold the approved slot for the whole job; verify identity and back up unknown firmware before writing.
+- Keep `config/bench.env`, `esphome/secrets.yaml`, firmware binaries, and
   local captures out of commits unless a file is intentionally documented.
 
 ## Thanks

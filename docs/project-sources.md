@@ -4,7 +4,7 @@
 
 https://github.com/SensorsIot/Universal-Embedded-Workbench
 
-Used for the ESP workbench / RFC2217 portal model.
+Historical inspiration for the retired bench transport; current tooling follows esp-codex-platform bench/DESIGN.md.
 
 ## Bruxy Home Assistant development
 

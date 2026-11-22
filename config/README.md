@@ -1,24 +1,61 @@
-# Local environment settings
+# Client configuration
 
-This directory is the obvious home for setup-specific values such as workbench
-IP addresses, SSH users, and RFC2217 monitor ports.
+Copy `config/bench.env.example` to ignored `config/bench.env`. These are trusted
+local **shell** settings, unlike the host's literal `/etc/bench/bench.env`.
+Tools locate defaults relative to the repository, not your working directory.
+`BENCH_CONFIG_FILE` selects another trusted file. Explicit environment values
+win over file defaults. Never put keys, passwords or private identities in examples.
 
-Committed files:
+| Variable | Meaning / default |
+|---|---|
+| `BENCH_AGENT` | SSH destination alias, `bench-agent` |
+| `BENCH_SLOT` | Wrapper slot, `SLOT1` |
+| `BENCH_ALLOW_NON_SLOT1` | Explicit approval for another slot, `0` |
+| `BENCH_SSH_KEY` | Optional key path; normally SSH config/agent handles it |
+| `BENCH_SSH_CONFIG` | Optional SSH config path; normally standard SSH config |
+| `BENCH_KNOWN_HOSTS` | Optional trusted host-key file; checking always strict |
+| `BENCH_SSH_CONNECT_TIMEOUT` | Seconds, `10` |
+| `BENCH_SSH_SERVER_ALIVE_INTERVAL` / `BENCH_SSH_SERVER_ALIVE_COUNT_MAX` | `5` / `2` |
+| `BENCH_MONITOR_MAX_TIME` | Follow duration, `300`, maximum 600 seconds |
+| `BENCH_CAMERA_EXPOSURE` / `WIDTH` / `HEIGHT` / `SKIP` | Optional overrides of server camera defaults |
+| `BENCH_STATIC_ONLY` | `1` skips every remote validation call |
 
-- `workbench.env.example`: safe placeholder values and documentation.
+The thin `wb` wrapper accepts explicit slots as part of a verb; its server enforces
+configured slots, kind, locks and holds. The default-slot approval flag is for
+`espwb-esptool` and `espwb-monitor`, not a substitute for server access control.
 
-Ignored local files:
+## One-release compatibility
 
-- `workbench.env`: real values for this machine/network.
+`tools/lib/workbench-env` is the compatibility adapter. It accepts old
+`WORKBENCH_*` and `ESPWB_*` names for the supported settings above, mapping the
+suffix to `BENCH_*`, with a deprecation warning on **stderr**. `*_AGENT_HOST`
+maps to `BENCH_AGENT`. `WORKBENCH_IP` maps to `BENCH_IP`, a fallback destination
+`wbagent@<value>` only when no alias is set; it never selects an administrative
+user. Explicit new names win over explicit old names; explicit old names win over
+new file defaults. Do not set conflicting old prefixes for the same setting.
+`ESPWB_CONFIG_FILE`, `STATIC_ONLY`, `ALLOW_NON_SLOT1` and `SSH_CONFIG` also warn
+and map to their new names. An existing `config/workbench.env` is loaded with a
+warning only when no new default file or explicit config selector exists.
 
-To configure a checkout:
+Retired API URL/timeouts, local service/GPIO controls, SSH user selection,
+post-operation recovery, monitor-close recovery and local camera device settings
+have no equivalent: they warn and are ignored, never resurrecting the old
+transport or granting shell access. Set `BENCH_SLOT` to select a board.
+Legacy monitor max-time zero is bounded to 600 seconds;
+idle timeout/recovery flags do not affect serial-follow. The server handles
+kind-aware reopening and reset sequences.
 
-```bash
-cp config/workbench.env.example config/workbench.env
-```
+`tools/validate-workbench.sh` is a warning/exec shim. CrowPanel camera filenames
+remain and always capture on the bench. Sequence keeps its JPEG directory and
+one printed path per frame (four frames, three seconds apart by default), unlike
+the generic platform tool's tar output. `CROWPANEL_CAMERA_WIDTH`, `HEIGHT`, `SKIP`
+and `EXPOSURE` map to `BENCH_CAMERA_*` with warnings and the same precedence;
+`CROWPANEL_CAMERA_DEVICE` is retired and ignored. ESP reads must start at zero
+and writes use one merged image. Arbitrary
+esptool options, nonzero-offset reads, admin shell commands and local camera
+capture are intentionally not emulated by the restricted protocol.
 
-Then edit `config/workbench.env`.
-
-The project tools automatically source `config/workbench.env` when it exists.
-Environment variables passed on the command line still override the values in
-that file.
+Use verified SSH host keys; there is no automatic keyscan trust or private-key
+copy. Dev Containers can forward an SSH agent; the read-only `/host-ssh` mount
+can supply configuration/known_hosts explicitly. Do not embed machine-specific
+paths in `.devcontainer/devcontainer.json`.
