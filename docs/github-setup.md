@@ -56,7 +56,7 @@ Do not push if any of these are tracked:
   `*.ota.bin`
 - `artifacts/`
 - `.esphome/`
-- local workbench config such as `config/workbench.env`
+- local workbench config such as `config/bench.env`
 
 ## Codex auth note
 

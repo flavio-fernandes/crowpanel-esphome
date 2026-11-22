@@ -9,7 +9,7 @@ Start here for a full fresh-clone to flashed-device workflow:
 
 Short reference:
 
-- `../docs/esphome-workbench-cheatsheet.md`
+- `../docs/esphome-bench-cheatsheet.md`
 
 Current CrowPanel LVGL diagnostic target:
 

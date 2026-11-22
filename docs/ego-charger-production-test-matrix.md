@@ -63,7 +63,7 @@ Entity IDs may vary if Home Assistant has renamed the ESPHome device. ESPHome de
 - Serial monitor, when hardware/log path is available:
   - `devcontainer exec --workspace-folder . tools/espwb-monitor`
 - Workbench validation, if needed:
-  - `devcontainer exec --workspace-folder . tools/validate-workbench.sh`
+  - `devcontainer exec --workspace-folder . tools/validate-bench.sh`
 - Optional camera capture:
   - `tools/crowpanel-camera-capture`
 

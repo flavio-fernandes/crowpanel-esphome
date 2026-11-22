@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=tools/lib/workbench-env
+source "$SCRIPT_DIR/lib/workbench-env"
+load_bench_env
+bench_ssh status
+if bench_ssh health --json; then exit 0; else rc=$?; fi
+if ((rc == 1)); then printf 'DEGRADED: see health problems\n' >&2; fi
+exit "$rc"
